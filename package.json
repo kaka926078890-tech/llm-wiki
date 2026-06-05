@@ -9,6 +9,7 @@
     "build": "npm run build:frontend && tsc",
     "dev": "concurrently -n backend,frontend -c blue,green \"tsx src/index.ts\" \"npm run dev --prefix frontend\"",
     "dev:server": "tsx src/index.ts",
+    "sync:code": "node scripts/sync-code-repos.mjs",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/copy-tree-sitter-grammars.mjs"
   },

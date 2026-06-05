@@ -31,17 +31,17 @@ describe("config", () => {
     expect(cfg.deepseekApiKey).toBe("test-key");
   });
 
-  it("P0-CFG-02 default relative paths resolve under project root", () => {
+  it("P0-CFG-02 default relative paths resolve under llm-wiki/code", () => {
     const projectRoot = getProjectRoot();
     const cfg = loadConfig();
 
     expect(cfg.repos.middleware).toBe(
-      path.resolve(projectRoot, "../chatkit-middleware"),
+      path.resolve(projectRoot, "code/chatkit-middleware"),
     );
     expect(cfg.repos.web).toBe(
-      path.resolve(projectRoot, "../chatkit-middleware/tools/chatkit-web"),
+      path.resolve(projectRoot, "code/chatkit-web"),
     );
-    expect(cfg.repos.finclaw).toBe(path.resolve(projectRoot, "../finclaw"));
+    expect(cfg.repos.finclaw).toBe(path.resolve(projectRoot, "code/finclaw"));
   });
 
   it("P0-CFG-03 missing DEEPSEEK_API_KEY throws", () => {

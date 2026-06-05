@@ -18,9 +18,9 @@ export interface LlmWikiConfig {
   repos: AuthorizedRoots;
 }
 
-const DEFAULT_REPO_MIDDLEWARE = "../chatkit-middleware";
-const DEFAULT_REPO_WEB = "../chatkit-middleware/tools/chatkit-web";
-const DEFAULT_REPO_FINCLAW = "../finclaw";
+const DEFAULT_REPO_MIDDLEWARE = "code/chatkit-middleware";
+const DEFAULT_REPO_WEB = "code/chatkit-web";
+const DEFAULT_REPO_FINCLAW = "code/finclaw";
 
 export function getProjectRoot(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));

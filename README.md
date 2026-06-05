@@ -4,15 +4,15 @@
 
 | 仓库 | 默认路径（相对 `llm-wiki/`） |
 |------|------------------------------|
-| chatkit-middleware | `../chatkit-middleware` |
-| chatkit-web | `../chatkit-middleware/tools/chatkit-web` |
-| finclaw | `../finclaw` |
+| chatkit-web | `code/chatkit-web` |
+| chatkit-middleware | `code/chatkit-middleware` |
+| finclaw | `code/finclaw` |
 
 ## Prerequisites
 
 - **Node.js 22+**
 - **DeepSeek API Key** — 设置 `DEEPSEEK_API_KEY`
-- **三个 repo 路径** — 本地需存在上述三个仓库，或通过环境变量指向正确路径
+- **三个 repo 路径** — 本地需存在上述三个仓库，默认通过 `npm run sync:code` 拉取到 `llm-wiki/code/`
 
 ## Environment setup
 
@@ -29,15 +29,29 @@ DEEPSEEK_API_KEY=your-key-here
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
 
-REPO_CHATKIT_MIDDLEWARE=../chatkit-middleware
-REPO_CHATKIT_WEB=../chatkit-middleware/tools/chatkit-web
-REPO_FINCLAW=../finclaw
+REPO_CHATKIT_MIDDLEWARE=code/chatkit-middleware
+REPO_CHATKIT_WEB=code/chatkit-web
+REPO_FINCLAW=code/finclaw
 
 LLM_WIKI_PORT=3001
 LLM_WIKI_HOST=127.0.0.1
 ```
 
 路径均相对于 `llm-wiki/` 项目根解析为绝对路径；工具只能访问三个 repo 根目录内的文件。
+
+拉取或更新三个只读代码仓库：
+
+```bash
+npm run sync:code
+```
+
+该命令会把以下仓库放到 `llm-wiki/code/` 下；目录不存在时执行 `git clone`，已存在时执行 `git pull --ff-only`：
+
+| 仓库 | Git URL | 本地目录 |
+|------|---------|----------|
+| chatkit-web | `git@github.com:Geeksfino/chatkit-web.git` | `code/chatkit-web` |
+| chatkit-middleware | `git@github.com:Geeksfino/chatkit-middleware.git` | `code/chatkit-middleware` |
+| finclaw | `git@github.com:Geeksfino/finclaw.git` | `code/finclaw` |
 
 ## Install
 
@@ -51,6 +65,7 @@ cd frontend && npm install && cd ..
 | 命令 | 说明 |
 |------|------|
 | `npm run dev` | 同时启动后端（Fastify + SSE）与前端 Vite dev server |
+| `npm run sync:code` | clone/pull `code/` 下的三个并行代码仓库 |
 | `npm test` | 后端 vitest（根目录 `tests/`） |
 | `npm run build` | 构建前端 `frontend/dist` 并编译后端 TypeScript |
 
