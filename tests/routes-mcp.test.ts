@@ -153,6 +153,43 @@ describe("routes-mcp", () => {
     await app.close();
   });
 
+  it("adds frontline non-technical no-code instructions to MCP ask prompts", async () => {
+    const step = vi.fn(async function* () {
+      yield {
+        turn: 1,
+        role: "assistant_final",
+        content: "功能说明",
+      } satisfies LoopEvent;
+      yield { turn: 1, role: "done", content: "" } satisfies LoopEvent;
+    });
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 20,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "用户端有哪些功能？",
+          },
+        },
+      },
+    });
+
+    const prompt = step.mock.calls[0]?.[0] ?? "";
+    expect(prompt).toContain("一线非技术");
+    expect(prompt).toContain("禁止返回任何代码");
+    expect(prompt).toContain("操作步骤");
+    await app.close();
+  });
+
   it("stores oversized ask_llm_wiki results and returns a first chunk", async () => {
     const events: LoopEvent[] = [
       {

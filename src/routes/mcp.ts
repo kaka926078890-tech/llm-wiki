@@ -74,6 +74,13 @@ type StreamChunk = {
 
 type StreamChunkHandler = (chunk: StreamChunk) => void;
 
+const FRONTLINE_NO_CODE_INSTRUCTIONS = [
+  "Answer for frontline non-technical users.",
+  "最终答案必须面向一线非技术开发人员：说明用户能做什么、在哪里操作、需要什么权限、推荐操作步骤、业务含义和注意事项。",
+  "禁止返回任何代码。不要返回代码块、函数实现、接口定义、配置片段、JSON、YAML、SQL、shell 命令、TypeScript、React、CSS 或伪代码。",
+  "Evidence may use file paths and line numbers, but do not quote source code.",
+].join("\n");
+
 const askToolDefinition = {
   name: ASK_TOOL_NAME,
   description:
@@ -271,10 +278,13 @@ async function runAskTool(
   args: AskToolArguments,
   onChunk?: StreamChunkHandler,
 ): Promise<string> {
-  const question =
-    args.repo_scope && args.repo_scope !== "all"
-      ? `[repo_scope: ${args.repo_scope}]\n${args.question}\n\nPlease answer concisely and stay under ${args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS} characters.`
-      : `${args.question}\n\nPlease answer concisely and stay under ${args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS} characters.`;
+  const promptParts = [
+    args.repo_scope && args.repo_scope !== "all" ? `[repo_scope: ${args.repo_scope}]` : null,
+    args.question,
+    FRONTLINE_NO_CODE_INSTRUCTIONS,
+    `Please answer concisely and stay under ${args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS} characters.`,
+  ].filter((part): part is string => Boolean(part));
+  const question = promptParts.join("\n\n");
   const answerParts: string[] = [];
   const traceParts: string[] = [];
   const reasoningParts: string[] = [];
