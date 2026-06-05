@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "noEmitOnError": true
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/core/tools/filesystem.ts",
+    "src/core/tools/code-query.ts",
+    "src/core/code/auto-git-rollback.ts",
+    "src/core/code/file-encoding.ts",
+    "src/core/tools/fs/edit.ts",
+    "src/core/mcp/registry.ts",
+    "src/core/index/config.ts",
+    "src/core/tools/fs/glob.ts",
+    "src/core/i18n/EN.ts",
+    "src/core/code-query/**"
+  ]
+}

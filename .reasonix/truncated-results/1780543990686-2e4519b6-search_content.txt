@@ -1,0 +1,395 @@
+[chatkit-middleware]
+README.md:17: Each SPA folder has its own `package.json` and README with feature lists, env vars, and dev commands.
+bun.lock:2:   "lockfileVersion": 1,
+bun.lock:3:   "configVersion": 1,
+bun.lock:10:       "version": "1.0.0",
+bun.lock:39:       "version": "0.0.4",
+bun.lock:56:       "version": "1.0.0",
+bun.lock:100:       "version": "0.0.0",
+bun.lock:122:       "version": "0.1.0",
+bun.lock:126:       "version": "0.0.0",
+bun.lock:647:     "happy-dom": ["happy-dom@15.11.7", "", { "dependencies": { "entities": "^4.5.0", "webidl-conversions": "^7.0.0", "whatwg-mimetype": "^3.0.0" } }, "sha512-KyrFvnl+J9US63TEzwoiJOQzZBJY7KgBushJA8X61D…
+bun.lock:703:     "jsdom": ["jsdom@29.0.2", "", { "dependencies": { "@asamuzakjp/css-color": "^5.1.5", "@asamuzakjp/dom-selector": "^7.0.6", "@bramus/specificity": "^2.4.2", "@csstools/css-syntax-patches-for-csstre…
+bun.lock:1057:     "webidl-conversions": ["webidl-conversions@8.0.1", "", {}, "sha512-BMhLD/Sw+GbJC21C/UgyaZX41nPt8bUTg+jWyDeg7e7YN4xOM05YPSIXceACnXVtqyEw/LMClUQMtMZ+PGGpqQ=="],
+bun.lock:1061:     "whatwg-url": ["whatwg-url@16.0.1", "", { "dependencies": { "@exodus/bytes": "^1.11.0", "tr46": "^6.0.0", "webidl-conversions": "^8.0.1" } }, "sha512-1to4zXBxmXHV3IiSSEInrreIlu02vUOvrhxJJH5vcxYTBD…
+bun.lock:1125:     "happy-dom/webidl-conversions": ["webidl-conversions@7.0.0", "", {}, "sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g=="],
+chatkit-admin-mt/README.md:7: ## Features
+chatkit-admin-mt/package.json:3:   "version": "1.0.0",
+chatkit-admin-mt/src/components/RbacConsoleRoute.tsx:9: /** RBAC console — feature enabled + platform/tenant admin or RBAC tab read permissions. */
+chatkit-admin-mt/src/context/AuthContext.tsx:75:   tenantFeatureFlags: Record<string, unknown>;
+chatkit-admin-mt/src/context/AuthContext.tsx:165:   const [tenantFeatureFlags, setTenantFeatureFlags] = useState<Record<string, unknown>>({});
+chatkit-admin-mt/src/context/AuthContext.tsx:189:     setTenantFeatureFlags({});
+chatkit-admin-mt/src/context/AuthContext.tsx:232:       const nextFeatureFlags =
+chatkit-admin-mt/src/context/AuthContext.tsx:233:         me.tenant_feature_flags && typeof me.tenant_feature_flags === 'object'
+chatkit-admin-mt/src/context/AuthContext.tsx:234:           ? me.tenant_feature_flags
+chatkit-admin-mt/src/context/AuthContext.tsx:251:         rbacEnabled: nextFeatureFlags.rbac_enabled !== false,
+chatkit-admin-mt/src/context/AuthContext.tsx:261:       setTenantFeatureFlags(nextFeatureFlags);
+chatkit-admin-mt/src/context/AuthContext.tsx:547:       tenantFeatureFlags,
+chatkit-admin-mt/src/context/AuthContext.tsx:548:       rbacEnabled: tenantFeatureFlags.rbac_enabled !== false,
+chatkit-admin-mt/src/context/AuthContext.tsx:576:       tenantFeatureFlags,
+chatkit-admin-mt/src/locales/en.json:519:     "runtimeEventsTitle": "Recent runtime events",
+chatkit-admin-mt/src/locales/en.json:547:     "cardConfigVersion": "v{{version}}",
+chatkit-admin-mt/src/locales/en.json:670:     "version": "VERSION",
+chatkit-admin-mt/src/locales/en.json:671:     "versionPlaceholder": "1.0.0",
+chatkit-admin-mt/src/locales/en.json:719:     "versionHistory": "Version history",
+chatkit-admin-mt/src/locales/en.json:720:     "noVersionHistory": "No version history.",
+chatkit-admin-mt/src/locales/zh.json:116:     "selectTargetHint": "点击下列条目设定「新增」的相对位置：选中目录时在目录内插入；选中话术时与其同级。",
+chatkit-admin-mt/src/locales/zh.json:451:     "createDescription": "系统默认始终存在一个默认租户。当你需要独立的 claw 实例、策略，或按部门/小组划分用户时，可在这里新增租户。",
+chatkit-admin-mt/src/locales/zh.json:547:     "cardConfigVersion": "v{{version}}",
+chatkit-admin-mt/src/locales/zh.json:638:     "syncPresetSuccess": "同步完成：新增 {{created}} 条，更新 {{updated}} 条，删除 {{deleted}} 条。",
+chatkit-admin-mt/src/locales/zh.json:670:     "version": "版本",
+chatkit-admin-mt/src/locales/zh.json:671:     "versionPlaceholder": "1.0.0",
+chatkit-admin-mt/src/locales/zh.json:719:     "versionHistory": "版本历史",
+chatkit-admin-mt/src/locales/zh.json:720:     "noVersionHistory": "暂无版本历史。",
+chatkit-admin-mt/src/pages/SkillCatalogPage.tsx:233:                     {skill.slug ?? skill.id} · v{skill.version}
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:23:   getAdminSkillVersions,
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:71:   const [versionEntries, setVersionEntries] = useState<Array<{ id: string; version: string; changelog?: string; created_at: string }>>([]);
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:147:   const loadVersions = useCallback(async () => {
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:152:       const res = await getAdminSkillVersions(token, id);
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:153:       setVersionEntries(res.versions);
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:155:       setVersionEntries([]);
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:180:     if (skill) void loadVersions();
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:181:   }, [skill?.id, loadVersions]);
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:311:                 v{skill.version}
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:418:             <h2 className="text-sm font-semibold text-slate-900">{t('skillDetail.versionHistory')}</h2>
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:419:             {versionEntries.length === 0 ? (
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:420:               <p className="mt-2 text-xs text-slate-500">{t('skillDetail.noVersionHistory')}</p>
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:423:                 {versionEntries.map((entry) => (
+chatkit-admin-mt/src/pages/SkillDetailPage.tsx:425:                     <p className="font-medium text-slate-800">v{entry.version}</p>
+chatkit-admin-mt/src/pages/SkillModerationPage.tsx:306:                           <p className="text-xs text-slate-500">v{skill.version}</p>
+chatkit-admin-mt/src/pages/SkillUploadPage.tsx:107:   const [version, setVersion] = useState('1.0.0');
+chatkit-admin-mt/src/pages/SkillUploadPage.tsx:250:       version: version.trim(),
+chatkit-admin-mt/src/pages/SkillUploadPage.tsx:325:               {t('skillUpload.version')}
+chatkit-admin-mt/src/pages/SkillUploadPage.tsx:328:                 value={version}
+chatkit-admin-mt/src/pages/SkillUploadPage.tsx:329:                 onChange={(e) => setVersion(e.target.value)}
+chatkit-admin-mt/src/pages/SkillUploadPage.tsx:330:                 placeholder={t('skillUpload.versionPlaceholder')}
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:59:   physicality_facial_features: string;
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:358:     physicality_facial_features:
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:359:       typeof physicality.facial_features === 'string'
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:360:         ? physicality.facial_features
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:361:         : joinList(physicality.facial_features),
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:388:   const facialFeatures = splitList(builder.physicality_facial_features);
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:454:     facial_features: facialFeatures.length > 0 ? facialFeatures : undefined,
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:495:   physicality_facial_features: '',
+chatkit-admin-mt/src/pages/TemplatesPage.tsx:801:             version: skill.version || existing?.version || 'unknown',
+chatkit-admin-mt/src/pages/TenantsPage.tsx:160:             {t('tenants.cardConfigVersion', { version: tenant.settings_version })}
+chatkit-admin-mt/src/services/adminApi.ts:85:   version: number;
+chatkit-admin-mt/src/services/adminApi.ts:121:   version: string;
+chatkit-admin-mt/src/services/adminApi.ts:165:   version: string;
+chatkit-admin-mt/src/services/adminApi.ts:205: export interface AdminSkillVersionEntry {
+chatkit-admin-mt/src/services/adminApi.ts:207:   version: string;
+chatkit-admin-mt/src/services/adminApi.ts:213: export interface AdminSkillVersionsResponse {
+chatkit-admin-mt/src/services/adminApi.ts:215:   versions: AdminSkillVersionEntry[];
+chatkit-admin-mt/src/services/adminApi.ts:226:     version: string;
+chatkit-admin-mt/src/services/adminApi.ts:254:   version?: string;
+chatkit-admin-mt/src/services/adminApi.ts:272:   version?: string;
+chatkit-admin-mt/src/services/adminApi.ts:322:   settings_version: number;
+chatkit-admin-mt/src/services/adminApi.ts:422:     version: Math.max(1, Number(policy?.version ?? 1)),
+chatkit-admin-mt/src/services/adminApi.ts:1019:     version?: string;
+chatkit-admin-mt/src/services/adminApi.ts:1048:     version: string | null;
+chatkit-admin-mt/src/services/adminApi.ts:1734:   version?: string;
+chatkit-admin-mt/src/services/adminApi.ts:2114: export async function getAdminSkillVersions(
+chatkit-admin-mt/src/services/adminApi.ts:2118: ): Promise<AdminSkillVersionsResponse> {
+chatkit-admin-mt/src/services/adminApi.ts:2119:   return requestJson<AdminSkillVersionsResponse>(
+chatkit-admin-mt/src/services/adminApi.ts:2120:     `/admin/skills/${encodeURIComponent(skillId)}/versions`,
+chatkit-admin-mt/src/services/identityApi.ts:29:  * docs/features/private-offline-date-license.zh.md §8.2. SPAs MUST use this
+chatkit-admin-mt/src/services/identityApi.ts:127:   feature_flags?: Record<string, unknown>;
+chatkit-admin-mt/src/services/identityApi.ts:166:   tenant_feature_flags?: Record<string, unknown>;
+chatkit-admin-mt/tsconfig.tsbuildinfo:1: {"root":["./src/app.tsx","./src/i18n.ts","./src/main.tsx","./src/vite-env.d.ts","./src/components/adminlayout.tsx","./src/components/apperrorboundary.tsx","./src/components/assignorgdialog.tsx","./src…
+chatkit-mobile/package.json:4:   "version": "0.0.4",
+chatkit-mobile/pnpm-lock.yaml:1: lockfileVersion: '9.0'
+chatkit-mobile/pnpm-lock.yaml:13:         version: 0.0.30(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+chatkit-mobile/pnpm-lock.yaml:16:         version: 18.3.1
+chatkit-mobile/pnpm-lock.yaml:19:         version: 18.3.1(react@18.3.1)
+chatkit-mobile/pnpm-lock.yaml:23:         version: 18.19.130
+chatkit-mobile/pnpm-lock.yaml:26:         version: 18.3.28
+chatkit-mobile/pnpm-lock.yaml:29:         version: 18.3.7(@types/react@18.3.28)
+chatkit-mobile/pnpm-lock.yaml:32:         version: 4.7.0(vite@5.4.21(@types/node@18.19.130))
+chatkit-mobile/pnpm-lock.yaml:35:         version: 5.9.3
+chatkit-mobile/pnpm-lock.yaml:38:         version: 5.4.21(@types/node@18.19.130)
+chatkit-mobile/vite.config.ts:83:   // the SDK forces resolution from node_modules so the wire shape matches the installed version.
+finclaw-frontend/package.json:3:   "version": "1.0.0",
+finclaw-frontend/src/components/FinclawComposerInput.tsx:119:   const [composerVersion, setComposerVersion] = useState(0);
+finclaw-frontend/src/components/FinclawComposerInput.tsx:127:     setComposerVersion((v) => v + 1);
+finclaw-frontend/src/components/FinclawComposerInput.tsx:139:     setComposerVersion((v) => v + 1);
+finclaw-frontend/src/components/FinclawComposerInput.tsx:155:   }, [composerVersion]);
+finclaw-frontend/src/components/FinclawComposerInput.tsx:159:     [composerVersion],
+finclaw-frontend/src/components/FinclawComposerInput.tsx:345:   }, [chatReady, inProgress, interrupt, uploads, composerVersion]);
+finclaw-frontend/src/components/InstalledSkillCard.tsx:29:   const versionUpdateAvailable =
+finclaw-frontend/src/components/InstalledSkillCard.tsx:30:     !builtin && Boolean(skill.installed_version) && skill.installed_version !== skill.version;
+finclaw-frontend/src/components/InstalledSkillCard.tsx:31:   const showUpdate = canInstall && versionUpdateAvailable;
+finclaw-frontend/src/components/InstalledSkillCard.tsx:46:                 v{skill.installed_version ?? skill.version}
+finclaw-frontend/src/components/InstalledSkillCard.tsx:50:                   {t('skills.updateAvailable', { version: skill.version })}
+finclaw-frontend/src/components/InstalledSkillScopeCard.tsx:38:                 v{skill.version}
+finclaw-frontend/src/components/SkillCard.tsx:33:     !builtin && Boolean(skill.installed_version) && skill.installed_version !== skill.version;
+finclaw-frontend/src/components/SkillCard.tsx:135:             v{skill.version}
+finclaw-frontend/src/components/SubmissionSkillCard.tsx:71:                 v{submission.version}
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:184: function recentEventCopy(
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:185:   event: NonNullable<InlineAgentProgressModel['recentEvents']>[number],
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:191:       return t('chat.inlineProgressRecentFetchStarted');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:193:       return t('chat.inlineProgressRecentSourceReviewing');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:196:         ? t('chat.inlineProgressRecentSkillActivateStarted', { skill: skillLabel })
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:197:         : t('chat.inlineProgressRecentSkillActivateStartedGeneric');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:200:         ? t('chat.inlineProgressRecentSkillActivateCompleted', { skill: skillLabel })
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:201:         : t('chat.inlineProgressRecentSkillActivateCompletedGeneric');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:204:         ? t('chat.inlineProgressRecentSkillScriptStarted', { script: event.skill.scriptPath })
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:205:         : t('chat.inlineProgressRecentSkillScriptStartedGeneric');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:208:         ? t('chat.inlineProgressRecentSkillScriptCompleted', { script: event.skill.scriptPath })
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:209:         : t('chat.inlineProgressRecentSkillScriptCompletedGeneric');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:212:         ? t('chat.inlineProgressRecentSkillJobStarted', { script: event.skill.scriptPath })
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:213:         : t('chat.inlineProgressRecentSkillJobStartedGeneric');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:215:       return t('chat.inlineProgressRecentSkillJobRunning');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:217:       return t('chat.inlineProgressRecentSkillJobCompleted');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:219:       return t('chat.inlineProgressRecentResponseDrafting');
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:249:   const recentEvents = model.recentEvents?.slice(-4).reverse() ?? [];
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:308:           {model.mode === 'detailed' && recentEvents.length > 0 ? (
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:311:                 {t('chat.inlineProgressRecentLabel')}
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:314:                 {recentEvents.map((event, index) => (
+finclaw-frontend/src/components/chat/InlineAgentProgress.tsx:320:                     <span>{recentEventCopy(event, t)}</span>
+finclaw-frontend/src/components/chat/agentProgressTypes.test.ts:188:   it('parses recent progress events for the inline timeline', () => {
+finclaw-frontend/src/components/chat/agentProgressTypes.test.ts:193:         recentEvents: [
+finclaw-frontend/src/components/chat/agentProgressTypes.test.ts:215:       recentEvents: [
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:51: export type ChatkitProgressRecentEventCode =
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:63: export interface ChatkitProgressRecentEvent {
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:64:   code: ChatkitProgressRecentEventCode;
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:81:   recentEvents?: ChatkitProgressRecentEvent[];
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:107:   recentEvents?: ChatkitProgressRecentEvent[];
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:244:   const recentEvents = Array.isArray(source.recentEvents) ? source.recentEvents : [];
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:245:   const parsedRecentEvents = recentEvents.flatMap((eventValue): ChatkitProgressRecentEvent[] => {
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:248:     const code = asNonEmptyString(event.code) as ChatkitProgressRecentEventCode | null;
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:288:   if (parsedRecentEvents.length > 0) {
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:289:     parsed.recentEvents = parsedRecentEvents;
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:355:         recentEvents: progress.recentEvents,
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:366:         recentEvents: progress.recentEvents,
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:380:         recentEvents: progress.recentEvents,
+finclaw-frontend/src/components/chat/agentProgressTypes.ts:412:         recentEvents: progress.recentEvents,
+finclaw-frontend/src/components/chat/agentThinkingTrace.ts:9:   type ChatkitProgressRecentEvent,
+finclaw-frontend/src/components/chat/agentThinkingTrace.ts:343: function formatProgressRecentEventLine(event: ChatkitProgressRecentEvent): string {
+finclaw-frontend/src/components/chat/agentThinkingTrace.ts:415: export function mergeProgressRecentIntoThinkingTrace(
+finclaw-frontend/src/components/chat/agentThinkingTrace.ts:419:   const recent = progress?.recentEvents;
+finclaw-frontend/src/components/chat/agentThinkingTrace.ts:420:   if (!recent || recent.length === 0) return entries;
+finclaw-frontend/src/components/chat/agentThinkingTrace.ts:425:   for (const ev of recent) {
+finclaw-frontend/src/components/chat/agentThinkingTrace.ts:426:     const text = formatProgressRecentEventLine(ev).trim();
+finclaw-frontend/src/components/chat/agentThinkingTrace.ts:431:       id: `progress-recent-${ev.code}-${ev.at}`,
+finclaw-frontend/src/components/chatpage-bridges/FileCardsStateBridge.tsx:94:           version: 1,
+finclaw-frontend/src/components/workbench/workspace/WorkspacePdfPreview.tsx:8: // Resolved via vite alias to one pdfjs-dist tree (same version as react-pdf's pdfjs API).
+finclaw-frontend/src/context/McpUiResourceStore.tsx:102:   version: number;
+finclaw-frontend/src/context/McpUiResourceStore.tsx:113:     version: number;
+finclaw-frontend/src/context/McpUiResourceStore.tsx:115:   }>({ version: 0, byMessageId: {} });
+finclaw-frontend/src/context/McpUiResourceStore.tsx:116:   const [version, setVersion] = useState(0);
+finclaw-frontend/src/context/McpUiResourceStore.tsx:203:         storeRef.current.version += 1;
+finclaw-frontend/src/context/McpUiResourceStore.tsx:204:         setVersion(storeRef.current.version);
+finclaw-frontend/src/context/McpUiResourceStore.tsx:236:       storeRef.current.version += 1;
+finclaw-frontend/src/context/McpUiResourceStore.tsx:237:       setVersion(storeRef.current.version);
+finclaw-frontend/src/context/McpUiResourceStore.tsx:301:       storeRef.current.version += 1;
+finclaw-frontend/src/context/McpUiResourceStore.tsx:302:       setVersion(storeRef.current.version);
+finclaw-frontend/src/context/McpUiResourceStore.tsx:308:       version,
+finclaw-frontend/src/context/McpUiResourceStore.tsx:315:   }, [version, registerFromCallToolResponse]);
+finclaw-frontend/src/context/McpUiResourceStore.tsx:326:   void store?.version;
+finclaw-frontend/src/context/ShareSelectionContext.tsx:125:       const url = `${base}/conversation/recent?session_id=${encodeURIComponent(shareSessionId)}&limit=100&offset=0&agent_id=${encodeURIComponent(agentId)}`;
+finclaw-frontend/src/hooks/useAgentSelection.tsx:29: // rename both; see docs/features/finclaw-frontend/session-history-localstorage-cache.md.
+finclaw-frontend/src/lib/mcpUiHydrateFromToolHistory.ts:102:  * (same anchor rule as MCP). Used when loading `/agent/conversation/recent` (no SSE reducer).
+finclaw-frontend/src/lib/mcpUiHydrateFromToolHistory.ts:155:         version: 1,
+finclaw-frontend/src/lib/secretsForm.test.ts:164:   it('formats recent timestamps', () => {
+finclaw-frontend/src/lib/sessionCache.ts:3:  * See docs/features/finclaw-frontend/session-history-localstorage-cache.md (middleware repo).
+finclaw-frontend/src/lib/workspaceSkillPublishDraft.test.ts:13:       version: null,
+finclaw-frontend/src/lib/workspaceSkillPublishDraft.test.ts:22:       version: '',
+finclaw-frontend/src/lib/workspaceSkillPublishDraft.test.ts:41:       version: '1.2.3',
+finclaw-frontend/src/lib/workspaceSkillPublishDraft.test.ts:49:     expect(defaults.version).toBe('1.2.3');
+finclaw-frontend/src/lib/workspaceSkillPublishDraft.test.ts:67:       version: '1.0.0',
+finclaw-frontend/src/lib/workspaceSkillPublishDraft.ts:7:   version: string;
+finclaw-frontend/src/lib/workspaceSkillPublishDraft.ts:23:     version: draft.version ?? '',
+finclaw-frontend/src/locales/en.json:489:     "inlineProgressRecentLabel": "Recent steps",
+finclaw-frontend/src/locales/en.json:490:     "inlineProgressRecentFetchStarted": "Started fetching source content",
+finclaw-frontend/src/locales/en.json:491:     "inlineProgressRecentSourceReviewing": "Reviewing fetched content",
+finclaw-frontend/src/locales/en.json:492:     "inlineProgressRecentSkillActivateStarted": "Started loading {{skill}}",
+finclaw-frontend/src/locales/en.json:493:     "inlineProgressRecentSkillActivateStartedGeneric": "Started loading a skill",
+finclaw-frontend/src/locales/en.json:494:     "inlineProgressRecentSkillActivateCompleted": "Loaded {{skill}}",
+finclaw-frontend/src/locales/en.json:495:     "inlineProgressRecentSkillActivateCompletedGeneric": "Loaded the skill",
+finclaw-frontend/src/locales/en.json:496:     "inlineProgressRecentSkillScriptStarted": "Started running {{script}}",
+finclaw-frontend/src/locales/en.json:497:     "inlineProgressRecentSkillScriptStartedGeneric": "Started running a skill script",
+finclaw-frontend/src/locales/en.json:498:     "inlineProgressRecentSkillScriptCompleted": "Finished running {{script}}",
+finclaw-frontend/src/locales/en.json:499:     "inlineProgressRecentSkillScriptCompletedGeneric": "Finished the skill script",
+finclaw-frontend/src/locales/en.json:500:     "inlineProgressRecentSkillJobStarted": "Started a background run for {{script}}",
+finclaw-frontend/src/locales/en.json:501:     "inlineProgressRecentSkillJobStartedGeneric": "Started a background skill job",
+finclaw-frontend/src/locales/en.json:502:     "inlineProgressRecentSkillJobRunning": "Background skill job is running",
+finclaw-frontend/src/locales/en.json:503:     "inlineProgressRecentSkillJobCompleted": "Background skill job completed",
+finclaw-frontend/src/locales/en.json:504:     "inlineProgressRecentResponseDrafting": "Started drafting the response",
+finclaw-frontend/src/locales/en.json:723:     "version": "Version",
+finclaw-frontend/src/locales/en.json:753:     "editSkillSubtitle": "Update your submission. Version (SemVer) must be greater than the current one; the slug cannot be changed.",
+finclaw-frontend/src/locales/en.json:755:     "versionBumpHint": "Must be greater than the current version (e.g. if current is 1.0.0, use 1.0.1).",
+finclaw-frontend/src/locales/en.json:760:     "errorVersionMustBump": "The version must be greater than the currently published version.",
+finclaw-frontend/src/locales/en.json:766:     "versionFieldHint": "Use a semantic version only (e.g. 1.0.0 or 2.1.0-beta.1). Do not add spaces or other text after numbers.",
+finclaw-frontend/src/locales/en.json:767:     "versionFieldInvalid": "Invalid version format. Remove spaces, non-ASCII characters, and use a valid SemVer string.",
+finclaw-frontend/src/locales/en.json:768:     "versionInvalidChars": "Version may only contain digits, letters, dots, hyphens, and plus signs (no spaces or non-ASCII).",
+finclaw-frontend/src/locales/en.json:772:     "versionRequired": "Version",
+finclaw-frontend/src/locales/en.json:814:     "errorVersionSemver": "Version must follow semantic versioning (e.g. 1.0.0).",
+finclaw-frontend/src/locales/en.json:844:     "inWorkspace": "In your workspace: {{version}}",
+finclaw-frontend/src/locales/en.json:849:     "versionHistory": "Version history",
+finclaw-frontend/src/locales/en.json:851:     "updateAvailable": "update: {{version}}",
+finclaw-frontend/src/locales/en.json:1062:         "body": "We use personal information to authenticate you, provide AI assistant features, maintain service security, comply with legal obligations, and improve reliability. We do not sell your …
+finclaw-frontend/src/locales/zh.json:489:     "inlineProgressRecentLabel": "最近步骤",
+finclaw-frontend/src/locales/zh.json:490:     "inlineProgressRecentFetchStarted": "已开始获取参考内容",
+finclaw-frontend/src/locales/zh.json:491:     "inlineProgressRecentSourceReviewing": "正在审阅已获取的内容",
+finclaw-frontend/src/locales/zh.json:492:     "inlineProgressRecentSkillActivateStarted": "已开始加载 {{skill}}",
+finclaw-frontend/src/locales/zh.json:493:     "inlineProgressRecentSkillActivateStartedGeneric": "已开始加载技能",
+finclaw-frontend/src/locales/zh.json:494:     "inlineProgressRecentSkillActivateCompleted": "已加载 {{skill}}",
+finclaw-frontend/src/locales/zh.json:495:     "inlineProgressRecentSkillActivateCompletedGeneric": "技能已加载",
+finclaw-frontend/src/locales/zh.json:496:     "inlineProgressRecentSkillScriptStarted": "已开始运行 {{script}}",
+finclaw-frontend/src/locales/zh.json:497:     "inlineProgressRecentSkillScriptStartedGeneric": "已开始运行技能脚本",
+finclaw-frontend/src/locales/zh.json:498:     "inlineProgressRecentSkillScriptCompleted": "已完成运行 {{script}}",
+finclaw-frontend/src/locales/zh.json:499:     "inlineProgressRecentSkillScriptCompletedGeneric": "技能脚本已完成",
+finclaw-frontend/src/locales/zh.json:500:     "inlineProgressRecentSkillJobStarted": "已为 {{script}} 启动后台任务",
+finclaw-frontend/src/locales/zh.json:501:     "inlineProgressRecentSkillJobStartedGeneric": "已启动后台技能任务",
+finclaw-frontend/src/locales/zh.json:502:     "inlineProgressRecentSkillJobRunning": "后台技能任务正在运行",
+finclaw-frontend/src/locales/zh.json:503:     "inlineProgressRecentSkillJobCompleted": "后台技能任务已完成",
+finclaw-frontend/src/locales/zh.json:504:     "inlineProgressRecentResponseDrafting": "已开始起草回复",
+finclaw-frontend/src/locales/zh.json:580:     "switchTeamModalChoose": "请从您已创建的团队中选择。若要新增成员，请前往数字员工招募岗位。",
+finclaw-frontend/src/locales/zh.json:723:     "version": "版本",
+finclaw-frontend/src/locales/zh.json:755:     "versionBumpHint": "必须高于当前版本（例如当前为 1.0.0，应填 1.0.1）。",
+finclaw-frontend/src/locales/zh.json:760:     "errorVersionMustBump": "版本号必须高于当前已发布版本。",
+finclaw-frontend/src/locales/zh.json:766:     "versionFieldHint": "仅填写语义化版本号（如 1.0.0 或 2.1.0-beta.1），不要在数字后加空格或其它文字。",
+finclaw-frontend/src/locales/zh.json:767:     "versionFieldInvalid": "版本格式无效。请去掉空格、中文等多余内容，仅保留符合 SemVer 的版本号。",
+finclaw-frontend/src/locales/zh.json:768:     "versionInvalidChars": "版本号仅允许数字、字母、点、连字符与加号（不能含空格、中文或其它符号）。",
+finclaw-frontend/src/locales/zh.json:772:     "versionRequired": "版本",
+finclaw-frontend/src/locales/zh.json:814:     "errorVersionSemver": "版本需符合语义化版本（如 1.0.0）。",
+finclaw-frontend/src/locales/zh.json:844:     "inWorkspace": "工作区版本：{{version}}",
+finclaw-frontend/src/locales/zh.json:849:     "versionHistory": "版本历史",
+finclaw-frontend/src/locales/zh.json:851:     "updateAvailable": "可更新至 {{version}}",
+finclaw-frontend/src/pages/ChatPage.tsx:265:   const [homeComposerVersion, setHomeComposerVersion] = useState(0);
+finclaw-frontend/src/pages/ChatPage.tsx:270:     setHomeComposerVersion((v) => v + 1);
+finclaw-frontend/src/pages/ChatPage.tsx:281:     [getHomeComposerText, homeComposerVersion],
+finclaw-frontend/src/pages/ChatPage.tsx:1187:   serverMessagesVersion,
+finclaw-frontend/src/pages/ChatPage.tsx:1192:   serverMessagesVersion: number;
+finclaw-frontend/src/pages/ChatPage.tsx:1261:   }, [agent, messages.length, sessionId, setMessages, pendingServerMessagesRef, serverMessagesVersion]);
+finclaw-frontend/src/pages/ChatPage.tsx:1532:   const url = `${base}/agent/conversation/recent?session_id=${encodeURIComponent(sessionId)}&limit=100&offset=0&agent_id=${encodeURIComponent(agentId)}`;
+finclaw-frontend/src/pages/ChatPage.tsx:1751:                   version: 1,
+finclaw-frontend/src/pages/ChatPage.tsx:2112:   const [serverMessagesVersion, setServerMessagesVersion] = useState(0);
+finclaw-frontend/src/pages/ChatPage.tsx:2138:   /** Session IDs we know have rows in conversation-store (for delete POST). Unlike serverValidatedSessionsRef, empty /recent does not add here. */
+finclaw-frontend/src/pages/ChatPage.tsx:2441:       setServerMessagesVersion((v) => v + 1);
+finclaw-frontend/src/pages/ChatPage.tsx:2471:         setServerMessagesVersion((v) => v + 1);
+finclaw-frontend/src/pages/ChatPage.tsx:2502:       setServerMessagesVersion((v) => v + 1);
+finclaw-frontend/src/pages/ChatPage.tsx:2990:       // serverValidatedSessionsRef is set even after empty /recent; use sessionPersistedOnServerRef instead.
+finclaw-frontend/src/pages/ChatPage.tsx:4422:                       serverMessagesVersion={serverMessagesVersion}
+finclaw-frontend/src/pages/SkillDetailPage.tsx:33:   if (skill.installed_version && skill.installed_version !== skill.version) return 'update';
+finclaw-frontend/src/pages/SkillDetailPage.tsx:167:                 v{skill.version}
+finclaw-frontend/src/pages/SkillDetailPage.tsx:244:                 {t('skills.inWorkspace', { version: skill.installed_version ?? t('skills.notInstalled') })}
+finclaw-frontend/src/pages/SkillDetailPage.tsx:286:               {skill.version_history && skill.version_history.length > 0 && (
+finclaw-frontend/src/pages/SkillDetailPage.tsx:288:                   <p className="text-xs font-medium text-slate-600">{t('skills.versionHistory')}</p>
+finclaw-frontend/src/pages/SkillDetailPage.tsx:290:                     {skill.version_history.slice(0, 5).map((entry: { id: string; version: string; created_at: string }) => (
+finclaw-frontend/src/pages/SkillDetailPage.tsx:291:                       <li key={entry.id}>v{entry.version} · {new Date(entry.created_at).toLocaleDateString()}</li>
+finclaw-frontend/src/pages/SkillPublishPage.tsx:26: /** Characters allowed in the version field (SemVer surface form); rejects spaces, CJK, etc. */
+finclaw-frontend/src/pages/SkillPublishPage.tsx:62:   version?: string;
+finclaw-frontend/src/pages/SkillPublishPage.tsx:70:   version: 'skill-publish-field-version',
+finclaw-frontend/src/pages/SkillPublishPage.tsx:76:   const order: (keyof SkillPublishFieldErrors)[] = ['name', 'slug', 'version', 'package', 'skillBody'];
+finclaw-frontend/src/pages/SkillPublishPage.tsx:205:   version?: string;
+finclaw-frontend/src/pages/SkillPublishPage.tsx:265:       case 'version':
+finclaw-frontend/src/pages/SkillPublishPage.tsx:266:         result.version = val;
+finclaw-frontend/src/pages/SkillPublishPage.tsx:317:   const [version, setVersion] = useState('1.0.0');
+finclaw-frontend/src/pages/SkillPublishPage.tsx:369:         setVersion(detail.version);
+finclaw-frontend/src/pages/SkillPublishPage.tsx:432:         setVersion(defaults.version);
+finclaw-frontend/src/pages/SkillPublishPage.tsx:544:         if (meta.version && SEMVER_REGEX.test(meta.version)) {
+finclaw-frontend/src/pages/SkillPublishPage.tsx:545:           setVersion((prev) => (prev === '1.0.0' ? meta.version! : prev));
+finclaw-frontend/src/pages/SkillPublishPage.tsx:681:   const semverOk = SEMVER_REGEX.test(version.trim());
+finclaw-frontend/src/pages/SkillPublishPage.tsx:682:   const versionIllegalChars = version.length > 0 && !SEMVER_INPUT_ALLOWED.test(version);
+finclaw-frontend/src/pages/SkillPublishPage.tsx:691:   const versionFieldInvalid = !semverOk;
+finclaw-frontend/src/pages/SkillPublishPage.tsx:692:   const versionFieldHighlight = versionIllegalChars || versionFieldInvalid;
+finclaw-frontend/src/pages/SkillPublishPage.tsx:750:     if (versionIllegalChars) errs.version = t('skills.versionInvalidChars');
+finclaw-frontend/src/pages/SkillPublishPage.tsx:751:     else if (!semverOk) errs.version = t('skills.errorVersionSemver');
+finclaw-frontend/src/pages/SkillPublishPage.tsx:807:       version: version.trim(),
+finclaw-frontend/src/pages/SkillPublishPage.tsx:835:       } else if (/greater than the current version/i.test(raw)) {
+finclaw-frontend/src/pages/SkillPublishPage.tsx:836:         setError(t('skills.errorVersionMustBump'));
+finclaw-frontend/src/pages/SkillPublishPage.tsx:964:           <label className="text-sm text-slate-700" id="skill-publish-field-version">
+finclaw-frontend/src/pages/SkillPublishPage.tsx:966:               {t('skills.versionRequired')}
+finclaw-frontend/src/pages/SkillPublishPage.tsx:971:               value={version}
+finclaw-frontend/src/pages/SkillPublishPage.tsx:973:                 setVersion(e.target.value);
+finclaw-frontend/src/pages/SkillPublishPage.tsx:974:                 clearFieldError('version');
+finclaw-frontend/src/pages/SkillPublishPage.tsx:977:               aria-invalid={Boolean(fieldErrors.version) || versionFieldHighlight}
+finclaw-frontend/src/pages/SkillPublishPage.tsx:979:                 fieldErrors.version
+finclaw-frontend/src/pages/SkillPublishPage.tsx:981:                   : versionFieldHighlight
+finclaw-frontend/src/pages/SkillPublishPage.tsx:987:               {isEditMode ? t('skills.versionBumpHint') : t('skills.versionFieldHint')}
+[finclaw-frontend/src/pages/SkillPublishPage.tsx: 6 more matches in this file — re-grep with a tighter pattern or use read_file to see them]
+finclaw-frontend/src/services/identityApi.ts:29:  * docs/features/private-offline-date-license.zh.md §8.2. SPAs MUST use this
+finclaw-frontend/src/services/identityApi.ts:122:   tenant_feature_flags?: Record<string, unknown>;
+finclaw-frontend/src/services/identityApi.ts:155:   privacy_policy_version?: string;
+finclaw-frontend/src/services/identityApi.ts:185:   const privacy_policy_version =
+finclaw-frontend/src/services/identityApi.ts:186:     typeof raw.privacy_policy_version === 'string' && raw.privacy_policy_version.trim()
+finclaw-frontend/src/services/identityApi.ts:187:       ? raw.privacy_policy_version.trim()
+finclaw-frontend/src/services/identityApi.ts:199:     privacy_policy_version,
+finclaw-frontend/tsconfig.tsbuildinfo:1: {"root":["./src/app.tsx","./src/i18n.ts","./src/main.tsx","./src/vite-env.d.ts","./src/chat/shareturnselection.ts","./src/components/agentavatar.tsx","./src/components/agentmarquee.tsx","./src/compone…
+libs/chatkit-native-chat/package.json:3:   "version": "0.0.0",
+libs/chatkit-native-chat/src/SessionAgUiRunner.tsx:64:     // `registry` from context is recreated when snapshot/version bumps; deps would re-run this effect and churn Map entries.
+libs/chatkit-native-chat/src/agUiReducer.ts:543:       : { version: 1, items: [] };
+libs/chatkit-native-chat/src/agUiReducer.ts:554:     version: typeof existingFc.version === 'number' ? existingFc.version : 1,
+libs/contracts-ts/generated/flows/inbound/conversation-append.ts:85:          *     Supports pagination via offset; first page is the most recent N messages, then older.
+libs/contracts-ts/generated/flows/inbound/conversation-append.ts:220:         RecentMessagesResponse: {
+libs/contracts-ts/generated/flows/inbound/conversation-append.ts:430:                 /** @description Offset for pagination; 0 = most recent messages (default 0) */
+libs/contracts-ts/generated/flows/inbound/conversation-append.ts:445:                     "application/json": components["schemas"]["RecentMessagesResponse"];
+libs/contracts-ts/generated/flows/inbound/intent-classify.ts:18:          * @description Analyzes user query and recent conversation turns to determine:
+libs/contracts-ts/generated/flows/inbound/intent-classify.ts:66:             /** @description Recent conversation turns (last 3-5 messages) */
+libs/contracts-ts/generated/flows/inbound/intent-classify.ts:67:             recent_turns?: components["schemas"]["Message"][];
+libs/contracts-ts/generated/flows/inbound/intent-classify.ts:89:              *     - technical_issue, billing_inquiry, account_access, feature_request, general
+libs/contracts-ts/generated/flows/inbound/intent-classify.ts:161:             /** @description Configuration version */
+libs/contracts-ts/generated/flows/inbound/intent-classify.ts:162:             version?: string;
+libs/contracts-ts/generated/flows/outbound/trigger-filter.ts:19:          *     - Deduplication (same trigger recently processed)
+libs/contracts-ts/generated/host-claw/claw-api/openapi.ts:1346:             version?: string;
+libs/contracts-ts/generated/host-claw/claw-api/openapi.ts:1349:             contract_version?: string;
+libs/contracts-ts/generated/host-claw/host-spi/openapi.ts:891:             version?: string;
+libs/contracts-ts/generated/host-claw/host-spi/openapi.ts:973:             profile_version: number;
+libs/contracts-ts/generated/host-claw/host-spi/openapi.ts:1009:         /** @description BGE returns either a 2-D array of floats or a list of objects depending on version. */
+libs/contracts-ts/generated/platform/skills-catalog.ts:37:          *     greater than the current skill version. Slug cannot change. Active/approved skills
+libs/contracts-ts/generated/platform/skills-catalog.ts:168:         SkillVersionEntry: {
+libs/contracts-ts/generated/platform/skills-catalog.ts:170:             version: string;
+libs/contracts-ts/generated/platform/skills-catalog.ts:181:             version: string;
+libs/contracts-ts/generated/platform/skills-catalog.ts:189:             installed_version?: string | null;
+libs/contracts-ts/generated/platform/skills-catalog.ts:198:             version_history: components["schemas"]["SkillVersionEntry"][];
+libs/contracts-ts/generated/platform/skills-catalog.ts:209:             version: string;
+libs/contracts-ts/generated/platform/skills-catalog.ts:218:         /** @description Same fields as create; version must be strictly greater than the current skill version. */
+libs/contracts-ts/generated/platform/skills-catalog.ts:260:             version?: string | null;
+libs/contracts-ts/generated/platform/skills-catalog.ts:296:             installed_version: string;
+libs/contracts-ts/generated/platform/skills-catalog.ts:314:             version: string;
+libs/contracts-ts/generated/platform/skills-catalog.ts:330:             version: string;
+libs/contracts-ts/generated/platform/skills-catalog.ts:536:             /** @description Invalid body or version not greater than current */
+libs/contracts-ts/generated/platform/skills-catalog.ts:572:             /** @description Version number already exists for this skill */
+libs/contracts-ts/generated/shared/context-assemble.ts:47:             /** @description Recent conversation messages for multi-turn context */
+libs/contracts-ts/generated/shared/context-assemble.ts:62:              * @description Number of recent conversation messages to include
+libs/contracts-ts/generated/shared/context-assemble.ts:104:             /** @description Recent conversation messages in chronological order (oldest first) */
+libs/contracts-ts/generated/shared/llm-infer.ts:298:             version?: string;
+libs/contracts-ts/generated/shared/memory-enhancement.ts:64:          *     1. Evaluate importance of recent memories
+libs/contracts-ts/generated/shared/nemo-post-guard.ts:76:             policy_version?: string;
+libs/contracts-ts/generated/shared/nemo-pre-guard.ts:81:             policy_version?: string;
+libs/contracts-ts/generated/shared/policy-postflight.ts:67:             /** @description Rule-set version used for this decision */
+libs/contracts-ts/generated/shared/policy-postflight.ts:68:             policy_version?: string;
+libs/contracts-ts/generated/shared/policy-postflight.ts:111:             policy_version?: string;
+libs/contracts-ts/generated/shared/policy-preflight.ts:62:             /** @description Rule-set version used for this decision */
+libs/contracts-ts/generated/shared/policy-preflight.ts:63:             policy_version?: string;
+libs/contracts-ts/generated/shared/policy-preflight.ts:98:             policy_version?: string;
+libs/contracts-ts/generated/shared/profile-store.ts:68:             /** @description Profile version number (increments on each update) */
+libs/contracts-ts/generated/shared/profile-store.ts:69:             version: number;
+libs/contracts-ts/generated/support/doc-toolkit.ts:145:             version_label?: string;
+libs/contracts-ts/generated/support/doc-toolkit.ts:196:                 schema_version: string;
+libs/contracts-ts/generated/support/doc-toolkit.ts:218:                 schema_version: string;
+libs/contracts-ts/generated/support/doc-toolkit.ts:244:             schema_version: string;
+libs/contracts-ts/generated/support/doc-toolkit.ts:306:              * @description Optional structured plan produced by model-side schema conversion.
+libs/contracts-ts/generated/support/doc-toolkit.ts:308:              *     reducing JSON->markdown conversion in upstream orchestrator.
+libs/contracts-ts/generated/support/onboarding-profile.ts:91:             profile_version: number;
+libs/contracts-ts/generated/support/push-send.ts:118:             /** @description App version (e.g., "1.0.0") */
+libs/contracts-ts/generated/support/push-send.ts:119:             app_version?: string;
+libs/contracts-ts/generated/support/trigger-scheduler.ts:176:          * @description Returns recent run records for one schedule ordered newest-first
+libs/contracts-ts/package.json:3:   "version": "0.1.0",
+libs/contracts-ts/src/rbac/console.test.ts:3: import { canEnterRbacConsoleFromContext, isRbacFeatureEnabled } from './console.js';
+libs/contracts-ts/src/rbac/console.test.ts:25:   it('isRbacFeatureEnabled defaults on unless explicitly false', () => {
+libs/contracts-ts/src/rbac/console.test.ts:26:     expect(isRbacFeatureEnabled(undefined)).toBe(true);
+libs/contracts-ts/src/rbac/console.test.ts:27:     expect(isRbacFeatureEnabled({ rbac_enabled: false })).toBe(false);
+libs/contracts-ts/src/rbac/console.ts:7: export function isRbacFeatureEnabled(
+libs/contracts-ts/src/rbac/console.ts:17:   featureFlags: Record<string, unknown> | null | undefined,
+libs/contracts-ts/src/rbac/console.ts:19:   if (!isRbacFeatureEnabled(featureFlags)) return false;
+libs/rbac-ui/package.json:3:   "version": "0.0.0",
+libs/rbac-ui/src/index.test.ts:6:   isRbacFeatureEnabled,
+libs/rbac-ui/src/index.test.ts:27:   it('rbac feature defaults on unless explicitly disabled', () => {
+libs/rbac-ui/src/index.test.ts:28:     expect(isRbacFeatureEnabled(undefined)).toBe(true);
+libs/rbac-ui/src/index.test.ts:29:     expect(isRbacFeatureEnabled({})).toBe(true);
+libs/rbac-ui/src/index.test.ts:30:     expect(isRbacFeatureEnabled({ rbac_enabled: false })).toBe(false);
+libs/rbac-ui/src/index.ts:3:   isRbacFeatureEnabled,
+libs/rbac-ui/src/index.ts:9: export { isRbacFeatureEnabled, RBAC_CONSOLE_TAB_READ_PERMISSIONS };
+libs/rbac-ui/src/index.ts:55: /** RBAC console entry: feature on + platform/tenant admin or any RBAC tab read permission. */

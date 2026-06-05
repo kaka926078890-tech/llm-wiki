@@ -1,0 +1,480 @@
+[chatkit-middleware]
+.agent/skills/service-scaffold/SKILL.md:1- ---
+.agent/skills/service-scaffold/SKILL.md:2- name: service-scaffold
+.agent/skills/service-scaffold/SKILL.md:3: description: Generate new microservices with boilerplate. Adds to edition-manifest, creates OpenAPI contract, wires service-discovery.
+.agent/skills/service-scaffold/SKILL.md:4- ---
+.agent/skills/service-scaffold/SKILL.md:5- 
+.agent/skills/service-scaffold/SKILL.md:6- # Service Scaffold Skill
+--
+.agent/skills/service-scaffold/SKILL.md:180- | `LOG_LEVEL` | info | Pino log level |
+.agent/skills/service-scaffold/SKILL.md:181- ```
+.agent/skills/service-scaffold/SKILL.md:182- 
+.agent/skills/service-scaffold/SKILL.md:183: ### 4. Add to edition-manifest.yaml
+.agent/skills/service-scaffold/SKILL.md:184- ```yaml
+.agent/skills/service-scaffold/SKILL.md:185- services:
+.agent/skills/service-scaffold/SKILL.md:186-   {service-name}:
+--
+.agent/skills/service-scaffold/SKILL.md:252- 
+.agent/skills/service-scaffold/SKILL.md:253- - [ ] Service starts without errors
+.agent/skills/service-scaffold/SKILL.md:254- - [ ] Health endpoint returns 200
+.agent/skills/service-scaffold/SKILL.md:255: - [ ] Added to `edition-manifest.yaml`
+.agent/skills/service-scaffold/SKILL.md:256- - [ ] Added to `config/services.yaml`
+.agent/skills/service-scaffold/SKILL.md:257- - [ ] Created OpenAPI contract (if applicable)
+.agent/skills/service-scaffold/SKILL.md:258- - [ ] Regenerated contract types: `./scripts/generate-contracts.sh`
+.cursor/skills/service-scaffold/SKILL.md:1- ---
+.cursor/skills/service-scaffold/SKILL.md:2- name: service-scaffold
+.cursor/skills/service-scaffold/SKILL.md:3: description: Generate new microservices with boilerplate. Adds to edition-manifest, creates OpenAPI contract, wires service-discovery.
+.cursor/skills/service-scaffold/SKILL.md:4- ---
+.cursor/skills/service-scaffold/SKILL.md:5- 
+.cursor/skills/service-scaffold/SKILL.md:6- # Service Scaffold Skill
+--
+.cursor/skills/service-scaffold/SKILL.md:180- | `LOG_LEVEL` | info | Pino log level |
+.cursor/skills/service-scaffold/SKILL.md:181- ```
+.cursor/skills/service-scaffold/SKILL.md:182- 
+.cursor/skills/service-scaffold/SKILL.md:183: ### 4. Add to edition-manifest.yaml
+.cursor/skills/service-scaffold/SKILL.md:184- ```yaml
+.cursor/skills/service-scaffold/SKILL.md:185- services:
+.cursor/skills/service-scaffold/SKILL.md:186-   {service-name}:
+--
+.cursor/skills/service-scaffold/SKILL.md:252- 
+.cursor/skills/service-scaffold/SKILL.md:253- - [ ] Service starts without errors
+.cursor/skills/service-scaffold/SKILL.md:254- - [ ] Health endpoint returns 200
+.cursor/skills/service-scaffold/SKILL.md:255: - [ ] Added to `edition-manifest.yaml`
+.cursor/skills/service-scaffold/SKILL.md:256- - [ ] Added to `config/services.yaml`
+.cursor/skills/service-scaffold/SKILL.md:257- - [ ] Created OpenAPI contract (if applicable)
+.cursor/skills/service-scaffold/SKILL.md:258- - [ ] Regenerated contract types: `./scripts/generate-contracts.sh`
+.dockerignore:83- # Do not exclude /config
+.dockerignore:84- 
+.dockerignore:85- # Edition manifest
+.dockerignore:86: edition-manifest.yaml
+.dockerignore:87- 
+.dockerignore:88- # Langfuse OSS in tools/ (excluded from workspace; .dockerignore excludes tools/ by default)
+.dockerignore:89- 
+docs/README.md:3- When docs disagree with the repo, prefer these **sources of truth**:
+docs/README.md:4- 
+docs/README.md:5- - `config/services.yaml` — ports, hostnames, health endpoints
+docs/README.md:6: - `edition-manifest.yaml` — Basic vs Advance service membership
+docs/README.md:7- - `scripts/start-dev-services.sh` — local development startup
+docs/README.md:8- - `scripts/fleet.sh` — Docker-based deployment
+docs/README.md:9- 
+--
+docs/README.md:21- - [reference/services-overview.md](reference/services-overview.md) — service catalog, editions, flow map
+docs/README.md:22- - [reference/ports-and-services.md](reference/ports-and-services.md) — port and URL reference
+docs/README.md:23- - [reference/service-dependencies.md](reference/service-dependencies.md) — startup order, overrides
+docs/README.md:24: - [reference/edition-manifest.md](reference/edition-manifest.md) — how editions are defined
+docs/README.md:25- - [reference/edition-comparison.md](reference/edition-comparison.md) — Basic vs Advance
+docs/README.md:26- - [reference/build-reference.md](reference/build-reference.md) — build and release reference
+docs/README.md:27- - [reference/spec.md](reference/spec.md) — high-level product/spec notes
+docs/README.zh.md:3- 若文档之间存在冲突，请优先参考以下真实来源：
+docs/README.zh.md:4- 
+docs/README.zh.md:5- - `config/services.yaml`：服务、端口、健康检查
+docs/README.zh.md:6: - `edition-manifest.yaml`：Basic / Advance 版本成员关系
+docs/README.zh.md:7- - `scripts/start-dev-services.sh`：本地开发启动行为
+docs/README.zh.md:8- - `scripts/fleet.sh`：Docker 部署行为
+docs/README.zh.md:9- 
+docs/_inventory.md:7- |------|--------|----------------------------------|
+docs/_inventory.md:8- | `README.md`, `README.zh.md` | Canonical | Hub only |
+docs/_inventory.md:9- | `getting-started/*` | Canonical | `scripts/start-dev-services.sh`, `AGENTS.md` |
+docs/_inventory.md:10: | `reference/*` | Canonical | `config/services.yaml`, `edition-manifest.yaml` |
+docs/_inventory.md:11- | `development/*` | Canonical / Supporting | `contracts/`, `scripts/run-all-tests.sh` |
+docs/_inventory.md:12- | `operations/*` | Canonical | `scripts/fleet.sh`, `docker-compose*.yml` |
+docs/_inventory.md:13- | `architecture/*` | Supporting | `flows/`, `services/ai-infra-rs/`, manifests |
+docs/architecture/manifest-integration.md:2- 
+docs/architecture/manifest-integration.md:3- ## Overview
+docs/architecture/manifest-integration.md:4- 
+docs/architecture/manifest-integration.md:5: The `edition-manifest.yaml` file is now **the single source of truth** for service-to-edition mapping in ChatKit Middleware. All scripts read from this manifest instead of duplicating service lists.
+docs/architecture/manifest-integration.md:6- 
+docs/architecture/manifest-integration.md:7- ## What Changed
+docs/architecture/manifest-integration.md:8- 
+--
+docs/architecture/manifest-integration.md:18- 
+docs/architecture/manifest-integration.md:19- ### After (Manifest as Source of Truth)
+docs/architecture/manifest-integration.md:20- 
+docs/architecture/manifest-integration.md:21: All scripts read from `edition-manifest.yaml`:
+docs/architecture/manifest-integration.md:22- - `start-dev-services.sh` — reads services via `manifest-utils.sh`
+docs/architecture/manifest-integration.md:23- - `validate-profiles.sh` — validates docker-compose.yml matches manifest
+docs/architecture/manifest-integration.md:24- - `pack-release.sh` — packs release by edition (basic/advance)
+--
+docs/architecture/manifest-integration.md:108- 
+docs/architecture/manifest-integration.md:109- ### Adding a New Service
+docs/architecture/manifest-integration.md:110- 
+docs/architecture/manifest-integration.md:111: 1. **Update manifest** — Add service to `edition-manifest.yaml`
+docs/architecture/manifest-integration.md:112-    ```yaml
+docs/architecture/manifest-integration.md:113-    services:
+docs/architecture/manifest-integration.md:114-      - name: new-service
+--
+docs/architecture/manifest-integration.md:223- 
+docs/architecture/manifest-integration.md:224- ## See Also
+docs/architecture/manifest-integration.md:225- 
+docs/architecture/manifest-integration.md:226: - `edition-manifest.yaml` — The manifest file
+docs/architecture/manifest-integration.md:227: - `docs/edition-manifest.md` — Edition membership guide and usage
+docs/architecture/manifest-integration.md:228: - `docs/edition-manifest.md` — Manifest documentation
+docs/architecture/manifest-integration.md:229- - `scripts/QUICK_REFERENCE.md` — Quick reference guide
+docs/architecture/manifest-integration.md:230- 
+docs/architecture/manifest-integration.md:231- 
+docs/archive/misc/build-release-refactor-plan.md:641- - 打包: [`scripts/pack-release.sh`](../scripts/pack-release.sh)
+docs/archive/misc/build-release-refactor-plan.md:642- - 部署: [`scripts/fleet.sh`](../scripts/fleet.sh)
+docs/archive/misc/build-release-refactor-plan.md:643- - 配置: [`docker-compose.prod.yml`](../docker-compose.prod.yml), [`.env.example`](../.env.example)
+docs/archive/misc/build-release-refactor-plan.md:644: - 版本清单: [`edition-manifest.yaml`](../edition-manifest.yaml)
+docs/archive/misc/build-release-refactor-plan.md:645- - Rust: [`services/ai-infra-rs/Dockerfile`](../services/ai-infra-rs/Dockerfile), [`services/ai-infra-rs/Cargo.toml`](../services/ai-infra-rs/Cargo.toml)
+docs/archive/misc/build-release-refactor-plan.md:646- 
+docs/archive/misc/build-release-refactor-plan.md:647- ---
+--
+docs/archive/misc/build-release-refactor-plan.md:837- 
+docs/archive/misc/build-release-refactor-plan.md:838- **镜像清单来源（无歧义）**：
+docs/archive/misc/build-release-refactor-plan.md:839- 
+docs/archive/misc/build-release-refactor-plan.md:840: - 以 `edition-manifest.yaml` 为基准，映射到 `docker-compose.prod.yml` 中的 `image:` 字段
+docs/archive/misc/build-release-refactor-plan.md:841- - 推荐实现：新增 `scripts/edition-images.sh`，输出 basic/advance 的镜像列表（含完整 tag），供 save-images.sh 调用；或直接在 save-images.sh 内硬编码 5.2、5.3 节的镜像列表，与 compose 保持一致
+docs/archive/misc/build-release-refactor-plan.md:842- - 第三方镜像 tag 必须与 docker-compose.prod.yml 完全一致
+docs/archive/misc/build-release-refactor-plan.md:843- 
+--
+docs/archive/misc/build-release-refactor-plan.md:1056- 
+docs/archive/misc/build-release-refactor-plan.md:1057- 缓解：
+docs/archive/misc/build-release-refactor-plan.md:1058- 
+docs/archive/misc/build-release-refactor-plan.md:1059: - 强制使用 `edition-manifest.yaml` 生成镜像清单
+docs/archive/misc/build-release-refactor-plan.md:1060- - 增加 `verify-offline-assets.sh`
+docs/archive/misc/build-release-refactor-plan.md:1061- 
+docs/archive/misc/build-release-refactor-plan.md:1062- ### 风险 4：advance 依赖遗漏
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:87- - `scripts/build-prod.sh`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:88- - `scripts/push-images.sh`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:89- - `scripts/generate-nginx-from-services.ts`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:90: - `edition-manifest.yaml`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:91- - `docker-compose.yml`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:92- - `docker-compose.prod.yml`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:93- 
+--
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:141- - 构建后的 Nginx 配置不再把 MinIO 当作对外下载入口
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:142- - 文件下载链路改成经 `document-service` 的 `/api/documents/:id/content`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:143- 
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:144: #### `edition-manifest.yaml`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:145- 
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:146- 基础版服务清单新增：
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:147- 
+--
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:357- - `contracts/support/doc-toolkit.yaml`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:358- - `contracts/shared/ai-infer.yaml`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:359- - `config/services.yaml`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:360: - `edition-manifest.yaml`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:361- - `services/platform/doc-toolkit/**`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:362- - `scripts/generate-nginx-from-services.ts`
+docs/archive/plans/feat-claw-file-processing-merge-plan.md:363- 
+docs/archive/plans/feishu-channel-implementation-plan.md:291- | **修改** | `services/platform/delivery/src/index.ts`（feishu 分支） |
+docs/archive/plans/feishu-channel-implementation-plan.md:292- | **修改** | `services/platform/identity-service`（feishu provider 映射、`UserChannelBinding` 表及迁移） |
+docs/archive/plans/feishu-channel-implementation-plan.md:293- | **修改** | `services/platform/identity-service` 或独立服务（channels 配置 schema 与存储） |
+docs/archive/plans/feishu-channel-implementation-plan.md:294: | **修改** | `edition-manifest.yaml`、`docker-compose.yml`（注册 feishu-connector） |
+docs/archive/plans/feishu-channel-implementation-plan.md:295- 
+docs/archive/plans/feishu-channel-implementation-plan.md:296- ---
+docs/archive/plans/feishu-channel-implementation-plan.md:297- 
+docs/archive/plans/mcpui-server-integration-plan.md:580-       - chatkit-network
+docs/archive/plans/mcpui-server-integration-plan.md:581- ```
+docs/archive/plans/mcpui-server-integration-plan.md:582- 
+docs/archive/plans/mcpui-server-integration-plan.md:583: #### 4.16 edition-manifest 登记
+docs/archive/plans/mcpui-server-integration-plan.md:584- 
+docs/archive/plans/mcpui-server-integration-plan.md:585: mcp-adapter 作为可选服务，在 `edition-manifest.yaml` basic edition 中标记为 optional：
+docs/archive/plans/mcpui-server-integration-plan.md:586- 
+docs/archive/plans/mcpui-server-integration-plan.md:587- ```yaml
+docs/archive/plans/mcpui-server-integration-plan.md:588- basic:
+--
+docs/archive/plans/mcpui-server-integration-plan.md:597- - [ ] 适配层: 健康检查（含合作伙伴状态）+ 降级 + 自动重连
+docs/archive/plans/mcpui-server-integration-plan.md:598- - [ ] 适配层: session 自动续期
+docs/archive/plans/mcpui-server-integration-plan.md:599- - [ ] ai-infra-rs: mcp_call/mcp_http 命名统一
+docs/archive/plans/mcpui-server-integration-plan.md:600: - [ ] docker-compose.override.yml + edition-manifest
+docs/archive/plans/mcpui-server-integration-plan.md:601- 
+docs/archive/plans/mcpui-server-integration-plan.md:602- ---
+docs/archive/plans/mcpui-server-integration-plan.md:603- 
+docs/archive/upstream/ai-infra-repo.md:227- - ✅ Dockerfiles added to all services
+docs/archive/upstream/ai-infra-repo.md:228- - ✅ `start-dev-services.sh` updated to use external repo
+docs/archive/upstream/ai-infra-repo.md:229- - ✅ `docker-compose.yml` updated to use external images
+docs/archive/upstream/ai-infra-repo.md:230: - ✅ `edition-manifest.yaml` marks services as external
+docs/archive/upstream/ai-infra-repo.md:231- - ⏳ `services/ai-infra/` removal (after validation)
+docs/archive/upstream/ai-infra-repo.md:232- 
+docs/archive/upstream/ai-infra-repo.md:233- ## Access Control
+docs/features/conversational-agent-switching.zh.md:780- | **conversation-store** | 现有 `(agentId, session_id)` scope 已满足 |
+docs/features/conversational-agent-switching.zh.md:781- | **libs/agent-workspace** | 已有 `listWorkspaceAgents()`，IM connector 直接复用 |
+docs/features/conversational-agent-switching.zh.md:782- | **libs/contracts-ts** | 不新增 HTTP 合约（finclaw 工具不走 HTTP） |
+docs/features/conversational-agent-switching.zh.md:783: | **edition-manifest** | 不涉及服务拓扑变更 |
+docs/features/conversational-agent-switching.zh.md:784- | **ag-ui-server SessionManager** | 现有 thread 隔离机制已满足 |
+docs/features/conversational-agent-switching.zh.md:785- 
+docs/features/conversational-agent-switching.zh.md:786- ---
+--
+docs/features/conversational-agent-switching.zh.md:805- | 14 | wecom-connector | 同 12 对称 | TS | 小 | **P1** |
+docs/features/conversational-agent-switching.zh.md:806- | 15 | finclaw-frontend | `pages/ChatPage.tsx` 监听 `agent.state.agent_switch_request` 的 effect + i18n | TS | 小（~70 行） | **P1** |
+docs/features/conversational-agent-switching.zh.md:807- 
+docs/features/conversational-agent-switching.zh.md:808: **完全不动的服务：** persona-service、orchestrator、conversation-store、libs/agent-workspace、libs/contracts-ts、edition-manifest
+docs/features/conversational-agent-switching.zh.md:809- 
+docs/features/conversational-agent-switching.zh.md:810- **总工作量估算：**
+docs/features/conversational-agent-switching.zh.md:811- - P0：~3 人日（IM connector 复用文件系统直读，开发快）
+docs/features/enterprise-openclaw-feasibility.zh.md:445- - [服务概览](services-overview.zh.md) — 各服务与端口
+docs/features/enterprise-openclaw-feasibility.zh.md:446- - [架构决策](architecture-decisions.zh.md) — ADR 与投递/网关设计
+docs/features/enterprise-openclaw-feasibility.zh.md:447- - [OpenAPI 契约指南](openapi-contracts-guide.zh.md) — 契约优先开发
+docs/features/enterprise-openclaw-feasibility.zh.md:448: - [版本清单](../../edition-manifest.yaml) — Basic / Advance / Enterprise 服务划分
+docs/features/enterprise-openclaw-feasibility.zh.md:449- 
+docs/features/feishu-file-and-dingtalk-integration-design.md:1451- 
+docs/features/feishu-file-and-dingtalk-integration-design.md:1452- | 主题 | 说明 |
+docs/features/feishu-file-and-dingtalk-integration-design.md:1453- |------|------|
+docs/features/feishu-file-and-dingtalk-integration-design.md:1454: | **打包与发行** | `scripts/pack-release.sh`、各 edition 的 `edition-manifest`、CI 工作流是否在「basic/完整栈」中包含 `dingtalk-connector` 镜像构建与启动顺序。 |
+docs/features/feishu-file-and-dingtalk-integration-design.md:1455- | **环境变量生成** | `scripts/generate-env-from-services.ts` 等是否需登记新服务键（若脚本硬编码服务列表）。 |
+docs/features/feishu-file-and-dingtalk-integration-design.md:1456- | **测试用语统一** | §6 中 D-06/D-07 写「Orchestrator 收到 attachments」与正文「`document_ids` + `hints.uploaded_files`」不一致，用例描述建议改为与契约一致。 |
+docs/features/feishu-file-and-dingtalk-integration-design.md:1457- | **多租户 / corpId** | Prisma 以 `tenantId + corpId + staffId` 为键；文档对「同一 ChatKit 部署接多个钉钉企业」的 admin 配置与数据隔离需产品确认（是否 MVP仅单 corp）。 |
+docs/getting-started/README.md:2- 
+docs/getting-started/README.md:3- Onboarding paths: local setup, shortest reliable workflows, and manual QA entry points.
+docs/getting-started/README.md:4- 
+docs/getting-started/README.md:5: **Canonical code references:** `scripts/start-dev-services.sh`, `AGENTS.md`, `edition-manifest.yaml`.
+docs/getting-started/README.md:6- 
+docs/operations/deployment/README.md:35- - `basic`
+docs/operations/deployment/README.md:36- - `advance`
+docs/operations/deployment/README.md:37- 
+docs/operations/deployment/README.md:38: Edition membership lives in `edition-manifest.yaml`. Service addresses and ports live in `config/services.yaml`.
+docs/operations/deployment/README.md:39- 
+docs/operations/deployment.md:146- 
+docs/operations/deployment.md:147- - The supported deployment scripts currently target `basic` and `advance`, not a separate `enterprise` profile.
+docs/operations/deployment.md:148- - If health checks fail, run `./scripts/doctor.sh` before debugging individual services.
+docs/operations/deployment.md:149: - If you change edition membership or ports, update `edition-manifest.yaml` and `config/services.yaml` first, then regenerate dependent config.
+docs/operations/deployment.md:150- - For startup order and manual-service overrides, see [service-dependencies.md](../reference/service-dependencies.md).
+docs/operations/deployment.md:151- 
+docs/operations/k8s-hardware-sizing-500-online.md:50- ## 相关文档
+docs/operations/k8s-hardware-sizing-500-online.md:51- 
+docs/operations/k8s-hardware-sizing-500-online.md:52- - 部署脚本与离线包流程：[deployment.md](./deployment.md)
+docs/operations/k8s-hardware-sizing-500-online.md:53: - 服务依赖与端口发现：`../../config/services.yaml`、`../../edition-manifest.yaml`
+docs/operations/k8s-hardware-sizing-500-online.md:54- 
+docs/reference/README.md:2- 
+docs/reference/README.md:3- Stable lookup material: repo layout, service catalog, ports, dependencies, editions, and high-level spec.
+docs/reference/README.md:4- 
+docs/reference/README.md:5: **Canonical code references:** `config/services.yaml`, `edition-manifest.yaml`, `docker-compose.yml`.
+docs/reference/README.md:6- 
+docs/reference/build-reference.md:9- - `scripts/pack-release.sh`
+docs/reference/build-reference.md:10- - `scripts/build-prod.sh`
+docs/reference/build-reference.md:11- - `docker-compose.yml`
+docs/reference/build-reference.md:12: - `edition-manifest.yaml`
+docs/reference/build-reference.md:13- 
+docs/reference/build-reference.md:14- ## Supported Editions
+docs/reference/build-reference.md:15- 
+--
+docs/reference/build-reference.md:18- - `basic`
+docs/reference/build-reference.md:19- - `advance`
+docs/reference/build-reference.md:20- 
+docs/reference/build-reference.md:21: Edition membership comes from `edition-manifest.yaml`. Service ports and container names come from `config/services.yaml`.
+docs/reference/build-reference.md:22- 
+docs/reference/build-reference.md:23- ## Main Build Scripts
+docs/reference/build-reference.md:24- 
+--
+docs/reference/build-reference.md:95- - `LLM_API_KEY`
+docs/reference/build-reference.md:96- - `LLM_BASE_URL`
+docs/reference/build-reference.md:97- 
+docs/reference/build-reference.md:98: Edition-specific service selection should not be hardcoded in ad-hoc docs or scripts. Keep it in `edition-manifest.yaml`.
+docs/reference/build-reference.md:99- 
+docs/reference/build-reference.md:100- ## Volumes And Persistent State
+docs/reference/build-reference.md:101- 
+docs/reference/edition-comparison.md:1- # Edition Comparison
+docs/reference/edition-comparison.md:2- 
+docs/reference/edition-comparison.md:3: This comparison is derived from `edition-manifest.yaml` and `config/services.yaml`.
+docs/reference/edition-comparison.md:4- 
+docs/reference/edition-comparison.md:5- ## Summary
+docs/reference/edition-comparison.md:6- 
+docs/reference/edition-manifest.md:1- # Edition Manifest
+docs/reference/edition-manifest.md:2- 
+docs/reference/edition-manifest.md:3: `edition-manifest.yaml` is the repo's source of truth for which services belong to each supported edition.
+docs/reference/edition-manifest.md:4- 
+docs/reference/edition-manifest.md:5- It does not own port numbers or URLs. Those belong in `config/services.yaml`.
+docs/reference/edition-manifest.md:6- 
+--
+docs/reference/edition-manifest.md:52- 
+docs/reference/edition-manifest.md:53- When you add, remove, or move a runtime service:
+docs/reference/edition-manifest.md:54- 
+docs/reference/edition-manifest.md:55: 1. Update `edition-manifest.yaml`
+docs/reference/edition-manifest.md:56- 2. Update `config/services.yaml`
+docs/reference/edition-manifest.md:57- 3. Update `docker-compose.yml` and any edition overlay files
+docs/reference/edition-manifest.md:58- 4. Confirm `scripts/start-dev-services.sh` and `scripts/fleet.sh` still match the intended runtime behavior
+docs/reference/ports-and-services.md:6- 
+docs/reference/ports-and-services.md:7- - `config/services.yaml` for service and infrastructure ports
+docs/reference/ports-and-services.md:8- - `docker-compose.yml` for host exposure details
+docs/reference/ports-and-services.md:9: - `edition-manifest.yaml` for which services run in each edition
+docs/reference/ports-and-services.md:10- 
+docs/reference/ports-and-services.md:11- ## Infrastructure
+docs/reference/ports-and-services.md:12- 
+--
+docs/reference/ports-and-services.md:83- ## Notes
+docs/reference/ports-and-services.md:84- 
+docs/reference/ports-and-services.md:85- - Only `basic` and `advance` are currently supported by `scripts/start-dev-services.sh` and `scripts/fleet.sh`.
+docs/reference/ports-and-services.md:86: - `config/services.yaml` includes service entries that are not started by default in every flow; edition membership still comes from `edition-manifest.yaml`.
+docs/reference/ports-and-services.md:87- - When starting services individually, use the localhost `CONFIG_*_URL` overrides described in [service-dependencies.md](service-dependencies.md).
+docs/reference/ports-and-services.md:88- 
+docs/reference/project-structure.md:62- - `intent-classifier`
+docs/reference/project-structure.md:63- - `policy-engine`
+docs/reference/project-structure.md:64- 
+docs/reference/project-structure.md:65: The repo also contains `guardrails-engine`, but it is not part of the current `edition-manifest.yaml` or `config/services.yaml` service inventory.
+docs/reference/project-structure.md:66- 
+docs/reference/project-structure.md:67- ### `services/ai-infra-rs/`
+docs/reference/project-structure.md:68- 
+--
+docs/reference/project-structure.md:94- When the code and docs disagree, prefer these files:
+docs/reference/project-structure.md:95- 
+docs/reference/project-structure.md:96- - `config/services.yaml` for ports, hosts, health endpoints, and runtime categories
+docs/reference/project-structure.md:97: - `edition-manifest.yaml` for Basic vs Advance composition
+docs/reference/project-structure.md:98- - `docker-compose.yml` plus `docker-compose.advance.yml` for Compose runtime behavior
+docs/reference/project-structure.md:99- - `scripts/start-dev-services.sh` for local startup sequencing
+docs/reference/project-structure.md:100- - `scripts/fleet.sh` for Docker runtime orchestration
+docs/reference/project-structure.zh.md:1- # 项目结构
+docs/reference/project-structure.zh.md:2- 
+docs/reference/project-structure.zh.md:3: > **维护提示：** 本中文页面可能落后于当前仓库。请以英文 [project-structure.md](project-structure.md)、[docs/README.md](../README.md) 中的目录说明，以及 `edition-manifest.yaml` / `config/services.yaml` 为准。
+docs/reference/project-structure.zh.md:4- 
+docs/reference/project-structure.zh.md:5- ```
+docs/reference/project-structure.zh.md:6- chatkit-middleware/
+docs/reference/service-dependencies.md:5- Primary references:
+docs/reference/service-dependencies.md:6- 
+docs/reference/service-dependencies.md:7- - `config/services.yaml`
+docs/reference/service-dependencies.md:8: - `edition-manifest.yaml`
+docs/reference/service-dependencies.md:9- - `scripts/start-dev-services.sh`
+docs/reference/service-dependencies.md:10- - `scripts/fleet.sh`
+docs/reference/service-dependencies.md:11- 
+docs/reference/services-overview.md:5- Current sources of truth:
+docs/reference/services-overview.md:6- 
+docs/reference/services-overview.md:7- - `config/services.yaml` for ports, URLs, and health endpoints
+docs/reference/services-overview.md:8: - `edition-manifest.yaml` for Basic vs Advance membership
+docs/reference/services-overview.md:9- 
+docs/reference/services-overview.md:10- ## Supported Editions
+docs/reference/services-overview.md:11- 
+--
+docs/reference/services-overview.md:65- | `trigger-scheduler` | 26302 | Temporal-backed scheduling and workflows. |
+docs/reference/services-overview.md:66- | `event-listener` | 26303 | Event ingestion from NATS and related sources. |
+docs/reference/services-overview.md:67- | `agent-router` | 26304 | Pulse routing into the agent runtime. |
+docs/reference/services-overview.md:68: | `pulse-publish` | 26305 | Developer publish API for pulse events; present in `config/services.yaml` but not part of default `edition-manifest.yaml` editions. |
+docs/reference/services-overview.md:69- | `intent-classifier` | 26400 | Intent classification for advance flow governance. |
+docs/reference/services-overview.md:70- | `policy-engine` | 26402 | Policy preflight and postflight checks. |
+docs/reference/services-overview.md:71- 
+--
+docs/reference/services-overview.md:107- - `services/enterprise/guardrails-engine`
+docs/reference/services-overview.md:108- - `services/ai-infra-lite`
+docs/reference/services-overview.md:109- 
+docs/reference/services-overview.md:110: Treat those as repo-local utilities, legacy runtime paths, or incubating work unless they are explicitly added to `edition-manifest.yaml`.
+docs/reference/services-overview.md:111- 
+scripts/README.md:73- ## Utility Scripts
+scripts/README.md:74- 
+scripts/README.md:75- - **`generate-contracts.sh`** - Generate TypeScript/Python types from OpenAPI contracts
+scripts/README.md:76: - **`manifest-utils.sh`** - Helper functions for edition-manifest.yaml
+scripts/README.md:77: - **`validate-manifest.sh`** - Validate edition-manifest.yaml
+scripts/README.md:78- - **`validate-profiles.sh`** - Validate docker-compose.yml profiles match manifest
+scripts/README.md:79- 
+scripts/README.md:80- ## Cleanup Scripts
+scripts/manifest-utils.sh:2- #
+scripts/manifest-utils.sh:3- # Edition Manifest Utilities
+scripts/manifest-utils.sh:4- # 
+scripts/manifest-utils.sh:5: # Helper functions to parse and use edition-manifest.yaml
+scripts/manifest-utils.sh:6- # 
+scripts/manifest-utils.sh:7- # Usage:
+scripts/manifest-utils.sh:8- #   source scripts/manifest-utils.sh
+--
+scripts/manifest-utils.sh:19-   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+scripts/manifest-utils.sh:20- fi
+scripts/manifest-utils.sh:21- ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+scripts/manifest-utils.sh:22: MANIFEST_FILE="$ROOT_DIR/edition-manifest.yaml"
+scripts/manifest-utils.sh:23- 
+scripts/manifest-utils.sh:24- # Check if yq is available (preferred)
+scripts/manifest-utils.sh:25- if command -v yq &> /dev/null; then
+--
+scripts/manifest-utils.sh:177- }
+scripts/manifest-utils.sh:178- 
+scripts/manifest-utils.sh:179- # Get port numbers for an edition (for stop - only kill processes on OUR ports)
+scripts/manifest-utils.sh:180: # Sources: edition-manifest.yaml + config/services.yaml
+scripts/manifest-utils.sh:181- get_ports_for_edition() {
+scripts/manifest-utils.sh:182-   local edition=$1
+scripts/manifest-utils.sh:183-   local config_file="$ROOT_DIR/config/services.yaml"
+--
+scripts/manifest-utils.sh:251- }
+scripts/manifest-utils.sh:252- 
+scripts/manifest-utils.sh:253- # Get container names for an edition (for preflight/stop - only middleware's own components)
+scripts/manifest-utils.sh:254: # Sources: edition-manifest.yaml + config/services.yaml
+scripts/manifest-utils.sh:255- get_container_names_for_edition() {
+scripts/manifest-utils.sh:256-   local edition=$1
+scripts/manifest-utils.sh:257-   local config_file="$ROOT_DIR/config/services.yaml"
+scripts/start-dev-services.sh:18- #   ./scripts/start-dev-services.sh basic --claw-dir ../finclaw --isolation apple-container
+scripts/start-dev-services.sh:19- #   ./scripts/start-dev-services.sh basic --claw-image ghcr.io/finogeeks/ai-infra-rs:0.5.1-arm64
+scripts/start-dev-services.sh:20- #
+scripts/start-dev-services.sh:21: # Note: Service lists are read from edition-manifest.yaml
+scripts/start-dev-services.sh:22- 
+scripts/start-dev-services.sh:23- # Support both bash and zsh
+scripts/start-dev-services.sh:24- if [ -n "$ZSH_VERSION" ]; then
+--
+scripts/start-dev-services.sh:148-     Show this help.
+scripts/start-dev-services.sh:149- 
+scripts/start-dev-services.sh:150- NOTES
+scripts/start-dev-services.sh:151:   - Service lists are read from edition-manifest.yaml.
+scripts/start-dev-services.sh:152-   - Infrastructure (PostgreSQL, TimescaleDB, NATS, Redis, TEI) is started via
+scripts/start-dev-services.sh:153-     Docker in Step 4 unless already running.
+scripts/start-dev-services.sh:154-   - Advance requires Temporal for workflows.
+--
+scripts/start-dev-services.sh:857- # ============================================
+scripts/start-dev-services.sh:858- echo "🔍 Preflight check - ensuring no services are running..."
+scripts/start-dev-services.sh:859- 
+scripts/start-dev-services.sh:860: # Check for Docker containers (only edition-manifest components, not ai-infra-ts etc.)
+scripts/start-dev-services.sh:861- EDITION_CONTAINERS=$(get_container_names_for_edition "$EDITION")
+scripts/start-dev-services.sh:862- RUNNING_CONTAINER_NAMES=""
+scripts/start-dev-services.sh:863- for cname in $EDITION_CONTAINERS; do
+--
+scripts/start-dev-services.sh:1233-   echo "  ✅ External volumes ready"
+scripts/start-dev-services.sh:1234- fi
+scripts/start-dev-services.sh:1235- 
+scripts/start-dev-services.sh:1236: # Infrastructure from edition-manifest (dev only; production uses docker compose --profile)
+scripts/start-dev-services.sh:1237- INFRA_SERVICES_RAW=$(get_infrastructure_for_edition "$EDITION")
+scripts/start-dev-services.sh:1238- if [ -z "$INFRA_SERVICES_RAW" ]; then
+scripts/start-dev-services.sh:1239-   echo "  ⚠️  No infrastructure from manifest, using fallback list"
+--
+scripts/start-dev-services.sh:1594- # Step 9: Build Service Lists from Manifest
+scripts/start-dev-services.sh:1595- # ============================================
+scripts/start-dev-services.sh:1596- 
+scripts/start-dev-services.sh:1597: echo "📋 Reading services from edition-manifest.yaml..."
+scripts/start-dev-services.sh:1598- 
+scripts/start-dev-services.sh:1599- # Get services from manifest
+scripts/start-dev-services.sh:1600- MANIFEST_SERVICES=$(get_services_for_edition "$EDITION")
+scripts/stop-all-services.sh:2- #
+scripts/stop-all-services.sh:3- # ChatKit Middleware - Stop All Services
+scripts/stop-all-services.sh:4- #
+scripts/stop-all-services.sh:5: # Stops only THIS repo's components from edition-manifest.yaml + config/services.yaml.
+scripts/stop-all-services.sh:6- # - Docker containers: by name from manifest (no wildcards)
+scripts/stop-all-services.sh:7- # - Bun/Node processes on 26xxx ports (excludes ai-infra-ts ports)
+scripts/stop-all-services.sh:8- # - Concurrently processes
+--
+scripts/stop-all-services.sh:27- echo "🛑 Stopping ChatKit Middleware services (this repo only)..."
+scripts/stop-all-services.sh:28- echo ""
+scripts/stop-all-services.sh:29- 
+scripts/stop-all-services.sh:30: # Container names from edition-manifest + config/services.yaml (single source of truth)
+scripts/stop-all-services.sh:31- EDITION="${EDITION:-basic}"
+scripts/stop-all-services.sh:32- MANIFEST_CONTAINERS=$(get_container_names_for_edition "$EDITION" 2>/dev/null || true)
+scripts/stop-all-services.sh:33- 
+scripts/validate-manifest.sh:2- #
+scripts/validate-manifest.sh:3- # Validate Edition Manifest
+scripts/validate-manifest.sh:4- #
+scripts/validate-manifest.sh:5: # Checks that edition-manifest.yaml is valid and consistent with:
+scripts/validate-manifest.sh:6- #   - docker-compose.yml profiles
+scripts/validate-manifest.sh:7- #   - start-dev-services.sh service lists
+scripts/validate-manifest.sh:8- #
+scripts/validate-profiles.sh:2- #
+scripts/validate-profiles.sh:3- # Validate docker-compose.yml Profiles Match Edition Manifest
+scripts/validate-profiles.sh:4- #
+scripts/validate-profiles.sh:5: # Ensures that docker-compose.yml service profiles are consistent with edition-manifest.yaml
+scripts/validate-profiles.sh:6- #
+scripts/validate-profiles.sh:7- # Usage:
+scripts/validate-profiles.sh:8- #   ./scripts/validate-profiles.sh
+--
+scripts/validate-profiles.sh:12- 
+scripts/validate-profiles.sh:13- source "$SCRIPT_DIR/manifest-utils.sh"
+scripts/validate-profiles.sh:14- 
+scripts/validate-profiles.sh:15: echo "🔍 Validating docker-compose.yml profiles against edition-manifest.yaml..."
+scripts/validate-profiles.sh:16- echo ""
+scripts/validate-profiles.sh:17- 
+scripts/validate-profiles.sh:18- cd "$ROOT_DIR"
+--
+scripts/validate-profiles.sh:64-   echo "✅ Profile validation complete"
+scripts/validate-profiles.sh:65-   echo ""
+scripts/validate-profiles.sh:66-   echo "Note: docker-compose.yml includes infrastructure services (postgres, nats, etc.)"
+scripts/validate-profiles.sh:67:   echo "      that are not listed in edition-manifest.yaml services."
+scripts/validate-profiles.sh:68-   echo "      This is expected - infrastructure is always started."
+scripts/validate-profiles.sh:69- else
+scripts/validate-profiles.sh:70-   echo "❌ Profile validation failed with $ERRORS error(s)"
+services/platform/document-service/INTEGRATION_CHECKLIST.md:24- 
+services/platform/document-service/INTEGRATION_CHECKLIST.md:25- ### 4. Edition Manifest
+services/platform/document-service/INTEGRATION_CHECKLIST.md:26- 
+services/platform/document-service/INTEGRATION_CHECKLIST.md:27: - [x] `edition-manifest.yaml`：basic edition **基础设施列表不含 minio**
+services/platform/document-service/INTEGRATION_CHECKLIST.md:28- 
+services/platform/document-service/INTEGRATION_CHECKLIST.md:29- ### 5. 测试脚本
+services/platform/document-service/INTEGRATION_CHECKLIST.md:30- 
