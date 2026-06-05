@@ -76,7 +76,6 @@ export async function registerAskRoutes(
       return () => emitter.off(event, abortFromClient);
     };
 
-    const unbindRequestClose = bindDisconnect(request.raw, "close");
     const unbindRequestAborted = bindDisconnect(request.raw, "aborted");
     const unbindReplyClose = bindDisconnect(reply.raw, "close");
     const unbindSocketClose =
@@ -86,10 +85,13 @@ export async function registerAskRoutes(
 
     try {
       for await (const ev of loop.step(question)) {
-        if (aborted || request.raw.aborted || request.raw.destroyed) break;
-        if (reply.raw.destroyed || reply.raw.writableEnded) break;
+        if (aborted || request.raw.aborted) break;
+        if (reply.raw.destroyed || reply.raw.writableEnded) {
+          abortFromClient();
+          break;
+        }
         reply.raw.write(mapLoopEventToSse(ev));
-        if (request.raw.aborted || request.raw.destroyed) {
+        if (request.raw.aborted) {
           abortFromClient();
           break;
         }
@@ -107,7 +109,6 @@ export async function registerAskRoutes(
         );
       }
     } finally {
-      unbindRequestClose();
       unbindRequestAborted();
       unbindReplyClose();
       unbindSocketClose();

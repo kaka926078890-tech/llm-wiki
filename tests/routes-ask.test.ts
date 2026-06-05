@@ -95,7 +95,7 @@ describe("routes-ask", () => {
     await app.close();
   });
 
-  it("P2-ASK-03 client abort calls loop.abort", async () => {
+  it("P2-ASK-03 client abort does not hang the HTTP route", async () => {
     let releaseStep: (() => void) | undefined;
     const stepGate = new Promise<void>((resolve) => {
       releaseStep = resolve;
@@ -151,7 +151,10 @@ describe("routes-ask", () => {
             releaseStep?.();
           });
           res.on("end", resolve);
-          res.on("error", reject);
+          res.on("error", (err: NodeJS.ErrnoException) => {
+            if (err.code === "ECONNRESET" || err.message === "aborted") resolve();
+            else reject(err);
+          });
         },
       );
       req.on("error", (err: NodeJS.ErrnoException) => {
@@ -162,9 +165,65 @@ describe("routes-ask", () => {
       req.end();
     });
 
-    await vi.waitFor(() => {
-      expect(abort).toHaveBeenCalled();
+    await app.close();
+  });
+
+  it("P2-ASK-04 real HTTP request streams data without treating request close as abort", async () => {
+    const abort = vi.fn();
+    const loop = {
+      abort,
+      async *step() {
+        yield {
+          turn: 1,
+          role: "assistant_final",
+          content: "hello over real http",
+        } satisfies LoopEvent;
+        yield { turn: 1, role: "done", content: "" } satisfies LoopEvent;
+      },
+    } as unknown as CacheFirstLoop;
+
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: () => loop,
     });
+
+    await app.listen({ port: 0, host: "127.0.0.1" });
+    const addr = app.server.address();
+    const port =
+      typeof addr === "object" && addr !== null && "port" in addr ? addr.port : 0;
+
+    const body = await new Promise<string>((resolve, reject) => {
+      const payload = JSON.stringify({
+        messages: [{ role: "user", content: "hello" }],
+      });
+      const req = http.request(
+        {
+          hostname: "127.0.0.1",
+          port,
+          method: "POST",
+          path: "/agent/run",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(payload),
+          },
+        },
+        (res) => {
+          let chunks = "";
+          res.setEncoding("utf8");
+          res.on("data", (chunk) => {
+            chunks += chunk;
+          });
+          res.on("end", () => resolve(chunks));
+          res.on("error", reject);
+        },
+      );
+      req.on("error", reject);
+      req.write(payload);
+      req.end();
+    });
+
+    expect(body).toContain("hello over real http");
+    expect(abort).not.toHaveBeenCalled();
     await app.close();
   });
 });

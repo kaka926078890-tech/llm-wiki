@@ -43,7 +43,11 @@ interface AskToolArguments {
   question: string;
   repo_scope?: string;
   include_reasoning?: boolean;
+  max_answer_chars?: number;
 }
+
+const DEFAULT_MAX_ANSWER_CHARS = 6_000;
+const HARD_MAX_ANSWER_CHARS = 12_000;
 
 const askToolDefinition = {
   name: ASK_TOOL_NAME,
@@ -64,6 +68,13 @@ const askToolDefinition = {
       include_reasoning: {
         type: "boolean",
         description: "When true, include compact reasoning/tool trace details in the returned text.",
+      },
+      max_answer_chars: {
+        type: "integer",
+        description:
+          "Maximum response characters returned to the MCP client. Defaults to 6000 and is capped at 12000.",
+        minimum: 1000,
+        maximum: HARD_MAX_ANSWER_CHARS,
       },
     },
     required: ["question"],
@@ -110,7 +121,21 @@ function parseAskArgs(value: unknown): AskToolArguments {
     question,
     repo_scope: typeof args.repo_scope === "string" ? args.repo_scope.trim() : undefined,
     include_reasoning: args.include_reasoning === true,
+    max_answer_chars: normalizeMaxAnswerChars(args.max_answer_chars),
   };
+}
+
+function normalizeMaxAnswerChars(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MAX_ANSWER_CHARS;
+  return Math.min(HARD_MAX_ANSWER_CHARS, Math.max(1_000, Math.floor(value)));
+}
+
+function truncateAnswer(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  const note =
+    "\n\n[llm-wiki truncated this MCP result. Ask a narrower follow-up question or raise max_answer_chars up to 12000.]";
+  const budget = Math.max(0, maxChars - note.length);
+  return `${text.slice(0, budget).trimEnd()}${note}`;
 }
 
 function toolTraceLine(ev: LoopEvent): string | null {
@@ -129,8 +154,8 @@ function toolTraceLine(ev: LoopEvent): string | null {
 async function runAskTool(loop: CacheFirstLoop, args: AskToolArguments): Promise<string> {
   const question =
     args.repo_scope && args.repo_scope !== "all"
-      ? `[repo_scope: ${args.repo_scope}]\n${args.question}`
-      : args.question;
+      ? `[repo_scope: ${args.repo_scope}]\n${args.question}\n\nPlease answer concisely and stay under ${args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS} characters.`
+      : `${args.question}\n\nPlease answer concisely and stay under ${args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS} characters.`;
   const answerParts: string[] = [];
   const traceParts: string[] = [];
   const reasoningParts: string[] = [];
@@ -155,7 +180,7 @@ async function runAskTool(loop: CacheFirstLoop, args: AskToolArguments): Promise
   if (args.include_reasoning && traceParts.length > 0) {
     sections.push(`\nTool trace:\n${traceParts.join("\n")}`);
   }
-  return sections.join("\n").trim();
+  return truncateAnswer(sections.join("\n").trim(), args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS);
 }
 
 export async function registerMcpRoutes(

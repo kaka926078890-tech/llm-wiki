@@ -149,4 +149,45 @@ describe("routes-mcp", () => {
     expect(res.body).toContain("tool_start search_content");
     await app.close();
   });
+
+  it("truncates oversized ask_llm_wiki results for MCP clients", async () => {
+    const events: LoopEvent[] = [
+      {
+        turn: 1,
+        role: "assistant_final",
+        content: "x".repeat(5_000),
+      },
+      { turn: 1, role: "done", content: "" },
+    ];
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: () => mockLoop(events),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "Give me a long answer",
+            max_answer_chars: 1_000,
+          },
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as {
+      result: { content: Array<{ type: string; text: string }>; isError: boolean };
+    };
+    const text = body.result.content[0]?.text ?? "";
+    expect(text.length).toBeLessThanOrEqual(1_000);
+    expect(text).toContain("llm-wiki truncated this MCP result");
+    await app.close();
+  });
 });
