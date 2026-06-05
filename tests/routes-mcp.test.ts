@@ -87,17 +87,23 @@ describe("routes-mcp", () => {
 
     expect(res.statusCode).toBe(200);
     const body = res.json() as {
-      result: { tools: Array<{ name: string; inputSchema: { required?: string[] } }> };
+      result: {
+        tools: Array<{
+          name: string;
+          inputSchema: { required?: string[]; properties?: Record<string, unknown> };
+        }>;
+      };
     };
     expect(body.result.tools.map((tool) => tool.name)).toEqual([
       "ask_llm_wiki",
       "read_llm_wiki_result",
     ]);
     expect(body.result.tools[0]?.inputSchema.required).toContain("question");
+    expect(body.result.tools[0]?.inputSchema.properties).not.toHaveProperty("include_reasoning");
     await app.close();
   });
 
-  it("calls ask_llm_wiki and returns the final answer", async () => {
+  it("calls ask_llm_wiki and returns only a cached result handle", async () => {
     const events: LoopEvent[] = [
       {
         turn: 1,
@@ -143,13 +149,16 @@ describe("routes-mcp", () => {
         content: [
           {
             type: "text",
-            text: expect.stringContaining("llm-wiki can be exposed as an MCP server."),
+            text: expect.stringContaining("llm-wiki result prepared"),
           },
         ],
         isError: false,
       },
     });
-    expect(res.body).toContain("tool_start search_content");
+    expect(res.body).toContain("result_id: wiki_");
+    expect(res.body).toContain("next_action: call read_llm_wiki_result");
+    expect(res.body).not.toContain("llm-wiki can be exposed as an MCP server.");
+    expect(res.body).not.toContain("tool_start search_content");
     await app.close();
   });
 
@@ -190,7 +199,7 @@ describe("routes-mcp", () => {
     await app.close();
   });
 
-  it("stores oversized ask_llm_wiki results and returns a first chunk", async () => {
+  it("stores oversized ask_llm_wiki results and returns only a handle", async () => {
     const events: LoopEvent[] = [
       {
         turn: 1,
@@ -226,10 +235,11 @@ describe("routes-mcp", () => {
       result: { content: Array<{ type: string; text: string }>; isError: boolean };
     };
     const text = body.result.content[0]?.text ?? "";
-    expect(text.length).toBeLessThanOrEqual(1_400);
-    expect(text).toContain("llm-wiki cached_result_chunk");
+    expect(text.length).toBeLessThanOrEqual(500);
+    expect(text).toContain("llm-wiki result prepared");
     expect(text).toContain("result_id: wiki_");
-    expect(text).toContain("next_cursor:");
+    expect(text).toContain("next_action: call read_llm_wiki_result");
+    expect(text).not.toContain("x".repeat(100));
     expect(text).not.toContain("truncated");
     await app.close();
   });
@@ -268,6 +278,7 @@ describe("routes-mcp", () => {
       .content[0]!.text;
     const resultId = askText.match(/result_id: (wiki_[^\n]+)/)?.[1];
     expect(resultId).toEqual(expect.stringMatching(/^wiki_/));
+    expect(askText).not.toContain("abcdef");
 
     const read = await app.inject({
       method: "POST",
@@ -293,6 +304,74 @@ describe("routes-mcp", () => {
     expect(readText).toContain("range: 3-6 of 6");
     expect(readText).toContain("def");
     expect(step).toHaveBeenCalledTimes(1);
+    await app.close();
+  });
+
+  it("sanitizes cached MCP answers before read_llm_wiki_result exposes them", async () => {
+    const step = vi.fn(async function* () {
+      yield {
+        turn: 1,
+        role: "assistant_final",
+        content:
+          "用户可以在后台维护模板。\n\n```ts\nconst secret = createAdminClient();\n```\n\n证据链接: [App.tsx](../../chatkit-web/src/App.tsx:191)\n路径 src/services/adminApi.ts:1940 还有 JSON 配置。",
+      } satisfies LoopEvent;
+      yield {
+        turn: 1,
+        role: "tool",
+        content: "raw source code here",
+        toolName: "read_file",
+      } satisfies LoopEvent;
+      yield { turn: 1, role: "done", content: "" } satisfies LoopEvent;
+    });
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+    });
+
+    const ask = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 30,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "模板有什么功能？",
+            include_reasoning: true,
+          },
+        },
+      },
+    });
+    const askText = (ask.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    const resultId = askText.match(/result_id: (wiki_[^\n]+)/)?.[1];
+
+    const read = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 31,
+        method: "tools/call",
+        params: {
+          name: "read_llm_wiki_result",
+          arguments: {
+            result_id: resultId,
+          },
+        },
+      },
+    });
+
+    const readText = (read.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(readText).toContain("用户可以在后台维护模板");
+    expect(readText).not.toContain("const secret");
+    expect(readText).not.toContain("App.tsx");
+    expect(readText).not.toContain("adminApi.ts");
+    expect(readText).not.toContain("raw source code");
+    expect(readText).not.toContain("Tool trace");
     await app.close();
   });
 
@@ -329,7 +408,7 @@ describe("routes-mcp", () => {
     const askText = (ask.json() as { result: { content: Array<{ text: string }> } }).result
       .content[0]!.text;
     const resultId = askText.match(/result_id: (wiki_[^\n]+)/)?.[1];
-    expect(askText).toContain("range: 0-1000 of 2000");
+    expect(askText).not.toContain("range: 0-1000 of 2000");
 
     const read = await app.inject({
       method: "POST",
@@ -350,9 +429,45 @@ describe("routes-mcp", () => {
 
     const readText = (read.json() as { result: { content: Array<{ text: string }> } }).result
       .content[0]!.text;
-    expect(readText).toContain("range: 1000-1500 of 2000");
-    expect(readText).toContain("b".repeat(100));
-    expect(readText).toContain("Do not call ask_llm_wiki again");
+    expect(readText).toContain("range: 0-500 of 2000");
+    expect(readText).toContain("a".repeat(100));
+    await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 14,
+        method: "tools/call",
+        params: {
+          name: "read_llm_wiki_result",
+          arguments: {
+            result_id: resultId,
+            max_chars: 500,
+          },
+        },
+      },
+    });
+    const secondRead = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 15,
+        method: "tools/call",
+        params: {
+          name: "read_llm_wiki_result",
+          arguments: {
+            result_id: resultId,
+            max_chars: 500,
+          },
+        },
+      },
+    });
+    const secondReadText = (secondRead.json() as { result: { content: Array<{ text: string }> } })
+      .result.content[0]!.text;
+    expect(secondReadText).toContain("range: 1000-1500 of 2000");
+    expect(secondReadText).toContain("b".repeat(100));
+    expect(secondReadText).toContain("Do not call ask_llm_wiki again");
     expect(step).toHaveBeenCalledTimes(1);
     await app.close();
   });
@@ -405,23 +520,16 @@ describe("routes-mcp", () => {
         const data = block.split("\n").find((line) => line.startsWith("data: "));
         return data ? JSON.parse(data.slice("data: ".length)) : null;
       });
-    expect(frames).toHaveLength(3);
+    expect(frames).toHaveLength(1);
     expect(frames[0]).toMatchObject({
-      method: "notifications/message",
-      params: { data: { type: "text", text: "part one " } },
-    });
-    expect(frames[1]).toMatchObject({
-      method: "notifications/message",
-      params: { data: { type: "text", text: "part two" } },
-    });
-    expect(frames[2]).toMatchObject({
       jsonrpc: "2.0",
       id: 4,
       result: {
-        content: [{ type: "text", text: expect.stringContaining("part one part two") }],
+        content: [{ type: "text", text: expect.stringContaining("llm-wiki result prepared") }],
         isError: false,
       },
     });
+    expect(res.body).not.toContain("part one part two");
     await app.close();
   });
 });

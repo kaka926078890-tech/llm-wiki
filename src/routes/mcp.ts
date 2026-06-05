@@ -43,7 +43,6 @@ type JsonRpcResponse = JsonRpcSuccess | JsonRpcFailure;
 interface AskToolArguments {
   question: string;
   repo_scope?: string;
-  include_reasoning?: boolean;
   max_answer_chars?: number;
 }
 
@@ -67,18 +66,11 @@ const DEFAULT_CHUNK_CHARS = 2_000;
 const HARD_CHUNK_CHARS = 8_000;
 const MAX_STORED_RESULTS = 100;
 
-type StreamChunk = {
-  type: "text" | "trace";
-  text: string;
-};
-
-type StreamChunkHandler = (chunk: StreamChunk) => void;
-
 const FRONTLINE_NO_CODE_INSTRUCTIONS = [
   "Answer for frontline non-technical users.",
   "最终答案必须面向一线非技术开发人员：说明用户能做什么、在哪里操作、需要什么权限、推荐操作步骤、业务含义和注意事项。",
   "禁止返回任何代码。不要返回代码块、函数实现、接口定义、配置片段、JSON、YAML、SQL、shell 命令、TypeScript、React、CSS 或伪代码。",
-  "Evidence may use file paths and line numbers, but do not quote source code.",
+  "不要暴露源码路径、文件名、行号、组件名、函数名、接口名或内部证据链接；只输出用户可见能力和业务说明。",
 ].join("\n");
 
 const askToolDefinition = {
@@ -96,10 +88,6 @@ const askToolDefinition = {
         type: "string",
         description:
           "Optional scope hint, for example chatkit-middleware, chatkit-web, finclaw, or all.",
-      },
-      include_reasoning: {
-        type: "boolean",
-        description: "When true, include compact reasoning/tool trace details in the returned text.",
       },
       max_answer_chars: {
         type: "integer",
@@ -181,7 +169,6 @@ function parseAskArgs(value: unknown): AskToolArguments {
   return {
     question,
     repo_scope: typeof args.repo_scope === "string" ? args.repo_scope.trim() : undefined,
-    include_reasoning: args.include_reasoning === true,
     max_answer_chars: normalizeMaxAnswerChars(args.max_answer_chars),
   };
 }
@@ -240,6 +227,42 @@ function renderStoredChunk(stored: StoredResult, cursor: number, maxChars: numbe
   return `${header}\n\n${chunk}`;
 }
 
+function renderPreparedHandle(stored: StoredResult): string {
+  return [
+    "llm-wiki result prepared",
+    `result_id: ${stored.id}`,
+    `total_chars: ${[...stored.text].length}`,
+    "next_action: call read_llm_wiki_result with this result_id to read the public, code-redacted answer.",
+  ].join("\n");
+}
+
+function sanitizePublicAnswer(text: string): string {
+  const withoutCodeBlocks = text.replace(/```[\s\S]*?```/g, "[已隐藏代码片段]");
+  const withoutTrace = withoutCodeBlocks
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*(Tool trace|Reasoning trace)\s*:/i.test(line))
+    .filter((line) => !/^\s*(tool_start|tool_result|warning)\b/i.test(line))
+    .join("\n");
+  const withoutSourceLinks = withoutTrace.replace(
+    /\[([^\]]+)]\(([^)]*(?:\.(?:ts|tsx|js|jsx|rs|go|py|java|json|ya?ml|css|scss|html|md)|\/|\\)[^)]*)\)/gi,
+    "已核验内部证据",
+  );
+  const withoutInlineCode = withoutSourceLinks.replace(/`[^`]*`/g, "相关功能项");
+  const withoutPathLines = withoutInlineCode
+    .split(/\r?\n/)
+    .filter((line) => {
+      if (/(^|\s)(?:\.{0,2}\/|src\/|app\/|crates\/|tools\/|packages\/)/i.test(line)) {
+        return false;
+      }
+      if (/\b[\w.-]+\.(?:ts|tsx|js|jsx|rs|go|py|java|json|ya?ml|css|scss|html|md)(?::\d+)?\b/i.test(line)) {
+        return false;
+      }
+      return true;
+    })
+    .join("\n");
+  return withoutPathLines.replace(/\n{3,}/g, "\n\n").trim();
+}
+
 function acceptsEventStream(headers: IncomingHttpHeaders): boolean {
   return getHeaderValue(headers, "accept").toLowerCase().includes("text/event-stream");
 }
@@ -248,35 +271,9 @@ function sseFrame(message: unknown): string {
   return `event: message\ndata: ${JSON.stringify(message)}\n\n`;
 }
 
-function chunkNotification(chunk: StreamChunk): Record<string, unknown> {
-  return {
-    jsonrpc: "2.0",
-    method: "notifications/message",
-    params: {
-      level: "info",
-      logger: "llm-wiki",
-      data: chunk,
-    },
-  };
-}
-
-function toolTraceLine(ev: LoopEvent): string | null {
-  if (ev.role === "tool_start" && ev.toolName) {
-    return `tool_start ${ev.toolName}${ev.toolArgs ? ` ${ev.toolArgs}` : ""}`;
-  }
-  if (ev.role === "tool" && ev.toolName) {
-    return `tool_result ${ev.toolName}: ${ev.content}`.trim();
-  }
-  if (ev.role === "warning" && ev.content) {
-    return `warning: ${ev.content}`;
-  }
-  return null;
-}
-
 async function runAskTool(
   loop: CacheFirstLoop,
   args: AskToolArguments,
-  onChunk?: StreamChunkHandler,
 ): Promise<string> {
   const promptParts = [
     args.repo_scope && args.repo_scope !== "all" ? `[repo_scope: ${args.repo_scope}]` : null,
@@ -286,21 +283,12 @@ async function runAskTool(
   ].filter((part): part is string => Boolean(part));
   const question = promptParts.join("\n\n");
   const answerParts: string[] = [];
-  const traceParts: string[] = [];
-  const reasoningParts: string[] = [];
 
   for await (const ev of loop.step(question)) {
     if (ev.role === "assistant_delta" || ev.role === "assistant_final") {
       if (ev.content) {
         answerParts.push(ev.content);
-        onChunk?.({ type: "text", text: ev.content });
       }
-    }
-    if (ev.reasoningDelta) reasoningParts.push(ev.reasoningDelta);
-    const trace = toolTraceLine(ev);
-    if (trace) {
-      traceParts.push(trace);
-      if (args.include_reasoning) onChunk?.({ type: "trace", text: trace });
     }
     if (ev.role === "error") {
       throw new Error(ev.error || ev.content || "llm-wiki loop failed");
@@ -309,12 +297,6 @@ async function runAskTool(
 
   const answer = answerParts.join("").trim();
   const sections = [answer || "(llm-wiki completed without a final answer)"];
-  if (args.include_reasoning && reasoningParts.length > 0) {
-    sections.push(`\nReasoning trace:\n${reasoningParts.join("").trim()}`);
-  }
-  if (args.include_reasoning && traceParts.length > 0) {
-    sections.push(`\nTool trace:\n${traceParts.join("\n")}`);
-  }
   return sections.join("\n").trim();
 }
 
@@ -450,22 +432,13 @@ export async function registerMcpRoutes(
             Connection: "keep-alive",
           });
           try {
-            const text = await runAskTool(loop, args, (chunk) => {
-              if (!reply.raw.destroyed && !reply.raw.writableEnded) {
-                reply.raw.write(sseFrame(chunkNotification(chunk)));
-              }
-            });
+            const text = sanitizePublicAnswer(await runAskTool(loop, args));
             const stored = saveResult(args.question, text);
-            const firstChunk = renderStoredChunk(
-              stored,
-              0,
-              args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS,
-            );
             if (!reply.raw.destroyed && !reply.raw.writableEnded) {
               reply.raw.write(
                 sseFrame(
                   success(id, {
-                    content: [{ type: "text", text: firstChunk }],
+                    content: [{ type: "text", text: renderPreparedHandle(stored) }],
                     isError: false,
                   }),
                 ),
@@ -489,18 +462,14 @@ export async function registerMcpRoutes(
           return;
         }
 
-        const text = await runAskTool(loop, args);
+        const text = sanitizePublicAnswer(await runAskTool(loop, args));
         const stored = saveResult(args.question, text);
         return reply.send(
           success(id, {
             content: [
               {
                 type: "text",
-                text: renderStoredChunk(
-                  stored,
-                  0,
-                  args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS,
-                ),
+                text: renderPreparedHandle(stored),
               },
             ],
             isError: false,

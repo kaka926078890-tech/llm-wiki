@@ -91,8 +91,10 @@ cd frontend && npm test && npm run build
 
 | Tool | 参数 | 说明 |
 |------|------|------|
-| `ask_llm_wiki` | `question`、`repo_scope?`、`include_reasoning?`、`max_answer_chars?` | 复用 llm-wiki Agent loop 检索三个授权 repo；完整答案会缓存，返回首段和 `result_id` |
-| `read_llm_wiki_result` | `result_id`、`cursor?`、`max_chars?` | 分段读取已缓存答案；不传 `cursor` 时自动续读下一段，不重新运行 repo 检索 |
+| `ask_llm_wiki` | `question`、`repo_scope?`、`max_answer_chars?` | 复用 llm-wiki Agent loop 检索三个授权 repo；只返回 `result_id`，不返回正文或内部证据 |
+| `read_llm_wiki_result` | `result_id`、`cursor?`、`max_chars?` | 分段读取已缓存的公开答案；不传 `cursor` 时自动续读下一段，不重新运行 repo 检索 |
+
+MCP 工具结果面向 Admin 执行日志做了公开化处理：`ask_llm_wiki` 只暴露缓存句柄，`read_llm_wiki_result` 返回的内容会移除代码块、源码路径、文件行号、tool trace 和内部证据链接。
 
 在 `chatkit-middleware/tools/chatkit-web/chatkit-admin-mt` 的 MCP tools 页面新增 server，或写入 `chatkit-middleware/config/mcp-servers.yaml`：
 
@@ -116,7 +118,7 @@ servers:
 url: http://host.docker.internal:3001/mcp
 ```
 
-保存后在 Admin 中执行 reconnect/reload，看到 `ask_llm_wiki` 即表示已接入运行时工具目录。
+保存后在 Admin 中执行 reconnect/reload，看到 `ask_llm_wiki` 和 `read_llm_wiki_result` 即表示已接入运行时工具目录。
 
 ## Manual acceptance checklist (V1–V5)
 
