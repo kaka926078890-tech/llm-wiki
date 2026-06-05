@@ -62,6 +62,45 @@ cd frontend && npm test && npm run build
 
 开发时访问 `http://127.0.0.1:3001`（后端托管前端静态资源）。
 
+## MCP server
+
+`llm-wiki` 同时暴露标准 MCP Streamable HTTP 端点：
+
+| Endpoint | 说明 |
+|----------|------|
+| `POST /mcp` | MCP JSON-RPC 主入口，支持 `initialize`、`notifications/initialized`、`tools/list`、`tools/call` |
+| `GET /mcp` | 可选 SSE 事件流入口 |
+| `DELETE /mcp` | 释放 `mcp-session-id` |
+
+当前 MCP 工具：
+
+| Tool | 参数 | 说明 |
+|------|------|------|
+| `ask_llm_wiki` | `question`、`repo_scope?`、`include_reasoning?` | 复用 llm-wiki Agent loop 检索三个授权 repo 后回答 |
+
+在 `chatkit-middleware/tools/chatkit-web/chatkit-admin-mt` 的 MCP tools 页面新增 server，或写入 `chatkit-middleware/config/mcp-servers.yaml`：
+
+```yaml
+servers:
+  - id: llm-wiki
+    enabled: true
+    url: http://127.0.0.1:3001/mcp
+    transport: streamable-http
+    description: LLM Wiki codebase QA agent
+    allow_private: true
+    tools_include:
+      - ask_llm_wiki
+    tools_exclude: []
+```
+
+如果 ChatKit 运行在 Docker 容器内而 `llm-wiki` 运行在宿主机，URL 通常应改为：
+
+```yaml
+url: http://host.docker.internal:3001/mcp
+```
+
+保存后在 Admin 中执行 reconnect/reload，看到 `ask_llm_wiki` 即表示已接入运行时工具目录。
+
 ## Manual acceptance checklist (V1–V5)
 
 第一期业务验收需在真实 API 与三 repo 环境下手动完成。详见 [`docs/plans/2026-06-04-llm-wiki-phase1-completion-checklist.zh.md`](../docs/plans/2026-06-04-llm-wiki-phase1-completion-checklist.zh.md)。

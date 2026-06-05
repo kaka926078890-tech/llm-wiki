@@ -7,6 +7,7 @@ import type { LlmWikiConfig } from "./config.js";
 import type { BuildLoopFn } from "./routes/ask.js";
 import { registerAskRoutes } from "./routes/ask.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerMcpRoutes } from "./routes/mcp.js";
 
 export interface CreateAppOptions {
   config: LlmWikiConfig;
@@ -19,6 +20,7 @@ export async function createApp(opts: CreateAppOptions) {
 
   await registerHealthRoutes(app, opts.config);
   await registerAskRoutes(app, opts.config, opts.buildLoop);
+  await registerMcpRoutes(app, opts.config, opts.buildLoop);
 
   const staticRoot = path.join(opts.config.projectRoot, "frontend/dist");
   if (existsSync(staticRoot)) {
