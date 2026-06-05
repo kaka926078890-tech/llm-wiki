@@ -189,8 +189,9 @@ describe("routes-mcp", () => {
       result: { content: Array<{ type: string; text: string }>; isError: boolean };
     };
     const text = body.result.content[0]?.text ?? "";
-    expect(text.length).toBeLessThanOrEqual(1_200);
-    expect(text).toContain("llm-wiki result_id: wiki_");
+    expect(text.length).toBeLessThanOrEqual(1_400);
+    expect(text).toContain("llm-wiki cached_result_chunk");
+    expect(text).toContain("result_id: wiki_");
     expect(text).toContain("next_cursor:");
     expect(text).not.toContain("truncated");
     await app.close();
@@ -228,7 +229,7 @@ describe("routes-mcp", () => {
     });
     const askText = (ask.json() as { result: { content: Array<{ text: string }> } }).result
       .content[0]!.text;
-    const resultId = askText.match(/llm-wiki result_id: (wiki_[^\n]+)/)?.[1];
+    const resultId = askText.match(/result_id: (wiki_[^\n]+)/)?.[1];
     expect(resultId).toEqual(expect.stringMatching(/^wiki_/));
 
     const read = await app.inject({
@@ -252,8 +253,69 @@ describe("routes-mcp", () => {
     expect(read.statusCode).toBe(200);
     const readText = (read.json() as { result: { content: Array<{ text: string }> } }).result
       .content[0]!.text;
-    expect(readText).toContain("chars: 3-6 of 6");
+    expect(readText).toContain("range: 3-6 of 6");
     expect(readText).toContain("def");
+    expect(step).toHaveBeenCalledTimes(1);
+    await app.close();
+  });
+
+  it("auto-continues cached chunks when cursor is omitted", async () => {
+    const step = vi.fn(async function* () {
+      yield {
+        turn: 1,
+        role: "assistant_final",
+        content: `${"a".repeat(1_000)}${"b".repeat(500)}${"c".repeat(500)}`,
+      } satisfies LoopEvent;
+      yield { turn: 1, role: "done", content: "" } satisfies LoopEvent;
+    });
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+    });
+
+    const ask = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 12,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "Cache this",
+            max_answer_chars: 1_000,
+          },
+        },
+      },
+    });
+    const askText = (ask.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    const resultId = askText.match(/result_id: (wiki_[^\n]+)/)?.[1];
+    expect(askText).toContain("range: 0-1000 of 2000");
+
+    const read = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 13,
+        method: "tools/call",
+        params: {
+          name: "read_llm_wiki_result",
+          arguments: {
+            result_id: resultId,
+            max_chars: 500,
+          },
+        },
+      },
+    });
+
+    const readText = (read.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(readText).toContain("range: 1000-1500 of 2000");
+    expect(readText).toContain("b".repeat(100));
+    expect(readText).toContain("Do not call ask_llm_wiki again");
     expect(step).toHaveBeenCalledTimes(1);
     await app.close();
   });

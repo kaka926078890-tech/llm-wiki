@@ -77,7 +77,7 @@ cd frontend && npm test && npm run build
 | Tool | 参数 | 说明 |
 |------|------|------|
 | `ask_llm_wiki` | `question`、`repo_scope?`、`include_reasoning?`、`max_answer_chars?` | 复用 llm-wiki Agent loop 检索三个授权 repo；完整答案会缓存，返回首段和 `result_id` |
-| `read_llm_wiki_result` | `result_id`、`cursor?`、`max_chars?` | 按 `cursor` 分段读取已缓存答案，不重新运行 repo 检索 |
+| `read_llm_wiki_result` | `result_id`、`cursor?`、`max_chars?` | 分段读取已缓存答案；不传 `cursor` 时自动续读下一段，不重新运行 repo 检索 |
 
 在 `chatkit-middleware/tools/chatkit-web/chatkit-admin-mt` 的 MCP tools 页面新增 server，或写入 `chatkit-middleware/config/mcp-servers.yaml`：
 

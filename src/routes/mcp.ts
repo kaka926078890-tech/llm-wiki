@@ -58,11 +58,12 @@ interface StoredResult {
   createdAt: number;
   question: string;
   text: string;
+  nextCursor: number | null;
 }
 
-const DEFAULT_MAX_ANSWER_CHARS = 3_000;
+const DEFAULT_MAX_ANSWER_CHARS = 2_000;
 const HARD_MAX_ANSWER_CHARS = 8_000;
-const DEFAULT_CHUNK_CHARS = 3_000;
+const DEFAULT_CHUNK_CHARS = 2_000;
 const HARD_CHUNK_CHARS = 8_000;
 const MAX_STORED_RESULTS = 100;
 
@@ -96,7 +97,7 @@ const askToolDefinition = {
       max_answer_chars: {
         type: "integer",
         description:
-          "Maximum first-chunk characters returned to the MCP client. Defaults to 3000 and is capped at 8000. Full answer remains available via read_llm_wiki_result.",
+          "Maximum first-chunk characters returned to the MCP client. Defaults to 2000 and is capped at 8000. Full answer remains available via read_llm_wiki_result.",
         minimum: 1000,
         maximum: HARD_MAX_ANSWER_CHARS,
       },
@@ -119,12 +120,13 @@ const readResultToolDefinition = {
       },
       cursor: {
         type: "integer",
-        description: "Character offset to read from. Defaults to 0.",
+        description:
+          "Character offset to read from. Optional: when omitted, the server automatically returns the next unread chunk for this result_id.",
         minimum: 0,
       },
       max_chars: {
         type: "integer",
-        description: "Maximum chunk characters to return. Defaults to 3000 and is capped at 8000.",
+        description: "Maximum chunk characters to return. Defaults to 2000 and is capped at 8000.",
         minimum: 500,
         maximum: HARD_CHUNK_CHARS,
       },
@@ -186,7 +188,7 @@ function parseReadResultArgs(value: unknown): ReadResultArguments {
     cursor:
       typeof args.cursor === "number" && Number.isFinite(args.cursor)
         ? Math.max(0, Math.floor(args.cursor))
-        : 0,
+        : undefined,
     max_chars: normalizeChunkChars(args.max_chars),
   };
 }
@@ -218,12 +220,15 @@ function sliceByChars(text: string, cursor: number, maxChars: number): {
 
 function renderStoredChunk(stored: StoredResult, cursor: number, maxChars: number): string {
   const { chunk, nextCursor, totalChars } = sliceByChars(stored.text, cursor, maxChars);
+  stored.nextCursor = nextCursor;
   const header = [
-    `llm-wiki result_id: ${stored.id}`,
-    `chars: ${Math.min(cursor, totalChars)}-${nextCursor ?? totalChars} of ${totalChars}`,
+    "llm-wiki cached_result_chunk",
+    `result_id: ${stored.id}`,
+    `range: ${Math.min(cursor, totalChars)}-${nextCursor ?? totalChars} of ${totalChars}`,
+    `more_available: ${nextCursor === null ? "false" : "true"}`,
     nextCursor === null
-      ? "next_cursor: null"
-      : `next_cursor: ${nextCursor} (call read_llm_wiki_result with this cursor for the next chunk)`,
+      ? "next_action: answer the user from the gathered chunks; do not call ask_llm_wiki again for this same question."
+      : `next_cursor: ${nextCursor}; next_action: call read_llm_wiki_result with this result_id to continue, or omit cursor to auto-read the next chunk. Do not call ask_llm_wiki again for this same question.`,
   ].join("\n");
   return `${header}\n\n${chunk}`;
 }
@@ -317,6 +322,7 @@ export async function registerMcpRoutes(
       createdAt: Date.now(),
       question,
       text,
+      nextCursor: 0,
     };
     results.set(stored.id, stored);
     while (results.size > MAX_STORED_RESULTS) {
@@ -412,7 +418,11 @@ export async function registerMcpRoutes(
               content: [
                 {
                   type: "text",
-                  text: renderStoredChunk(stored, args.cursor ?? 0, args.max_chars ?? DEFAULT_CHUNK_CHARS),
+                  text: renderStoredChunk(
+                    stored,
+                    args.cursor ?? stored.nextCursor ?? 0,
+                    args.max_chars ?? DEFAULT_CHUNK_CHARS,
+                  ),
                 },
               ],
               isError: false,
