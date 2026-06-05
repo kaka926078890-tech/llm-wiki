@@ -49,6 +49,13 @@ interface AskToolArguments {
 const DEFAULT_MAX_ANSWER_CHARS = 6_000;
 const HARD_MAX_ANSWER_CHARS = 12_000;
 
+type StreamChunk = {
+  type: "text" | "trace";
+  text: string;
+};
+
+type StreamChunkHandler = (chunk: StreamChunk) => void;
+
 const askToolDefinition = {
   name: ASK_TOOL_NAME,
   description:
@@ -138,6 +145,26 @@ function truncateAnswer(text: string, maxChars: number): string {
   return `${text.slice(0, budget).trimEnd()}${note}`;
 }
 
+function acceptsEventStream(headers: IncomingHttpHeaders): boolean {
+  return getHeaderValue(headers, "accept").toLowerCase().includes("text/event-stream");
+}
+
+function sseFrame(message: unknown): string {
+  return `event: message\ndata: ${JSON.stringify(message)}\n\n`;
+}
+
+function chunkNotification(chunk: StreamChunk): Record<string, unknown> {
+  return {
+    jsonrpc: "2.0",
+    method: "notifications/message",
+    params: {
+      level: "info",
+      logger: "llm-wiki",
+      data: chunk,
+    },
+  };
+}
+
 function toolTraceLine(ev: LoopEvent): string | null {
   if (ev.role === "tool_start" && ev.toolName) {
     return `tool_start ${ev.toolName}${ev.toolArgs ? ` ${ev.toolArgs}` : ""}`;
@@ -151,7 +178,11 @@ function toolTraceLine(ev: LoopEvent): string | null {
   return null;
 }
 
-async function runAskTool(loop: CacheFirstLoop, args: AskToolArguments): Promise<string> {
+async function runAskTool(
+  loop: CacheFirstLoop,
+  args: AskToolArguments,
+  onChunk?: StreamChunkHandler,
+): Promise<string> {
   const question =
     args.repo_scope && args.repo_scope !== "all"
       ? `[repo_scope: ${args.repo_scope}]\n${args.question}\n\nPlease answer concisely and stay under ${args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS} characters.`
@@ -162,11 +193,17 @@ async function runAskTool(loop: CacheFirstLoop, args: AskToolArguments): Promise
 
   for await (const ev of loop.step(question)) {
     if (ev.role === "assistant_delta" || ev.role === "assistant_final") {
-      if (ev.content) answerParts.push(ev.content);
+      if (ev.content) {
+        answerParts.push(ev.content);
+        onChunk?.({ type: "text", text: ev.content });
+      }
     }
     if (ev.reasoningDelta) reasoningParts.push(ev.reasoningDelta);
     const trace = toolTraceLine(ev);
-    if (trace) traceParts.push(trace);
+    if (trace) {
+      traceParts.push(trace);
+      if (args.include_reasoning) onChunk?.({ type: "trace", text: trace });
+    }
     if (ev.role === "error") {
       throw new Error(ev.error || ev.content || "llm-wiki loop failed");
     }
@@ -256,6 +293,47 @@ export async function registerMcpRoutes(
         }
         const args = parseAskArgs(params.arguments);
         const loop = buildLoopFn(cfg);
+        if (acceptsEventStream(request.headers)) {
+          reply.hijack();
+          reply.raw.writeHead(200, {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          });
+          try {
+            const text = await runAskTool(loop, args, (chunk) => {
+              if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+                reply.raw.write(sseFrame(chunkNotification(chunk)));
+              }
+            });
+            if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+              reply.raw.write(
+                sseFrame(
+                  success(id, {
+                    content: [{ type: "text", text }],
+                    isError: false,
+                  }),
+                ),
+              );
+            }
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (!reply.raw.destroyed && !reply.raw.writableEnded) {
+              reply.raw.write(
+                sseFrame(
+                  success(id, {
+                    content: [{ type: "text", text: message }],
+                    isError: true,
+                  }),
+                ),
+              );
+            }
+          } finally {
+            if (!reply.raw.writableEnded) reply.raw.end();
+          }
+          return;
+        }
+
         const text = await runAskTool(loop, args);
         return reply.send(
           success(id, {

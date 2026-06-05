@@ -190,4 +190,72 @@ describe("routes-mcp", () => {
     expect(text).toContain("llm-wiki truncated this MCP result");
     await app.close();
   });
+
+  it("streams ask_llm_wiki chunks over MCP SSE before the final result", async () => {
+    const events: LoopEvent[] = [
+      {
+        turn: 1,
+        role: "assistant_delta",
+        content: "part one ",
+      },
+      {
+        turn: 1,
+        role: "assistant_final",
+        content: "part two",
+      },
+      { turn: 1, role: "done", content: "" },
+    ];
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: () => mockLoop(events),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      headers: {
+        accept: "application/json, text/event-stream",
+      },
+      payload: {
+        jsonrpc: "2.0",
+        id: 4,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "Stream this answer",
+          },
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/event-stream");
+    const frames = res.body
+      .split("\n\n")
+      .map((block) => block.trim())
+      .filter(Boolean)
+      .map((block) => {
+        const data = block.split("\n").find((line) => line.startsWith("data: "));
+        return data ? JSON.parse(data.slice("data: ".length)) : null;
+      });
+    expect(frames).toHaveLength(3);
+    expect(frames[0]).toMatchObject({
+      method: "notifications/message",
+      params: { data: { type: "text", text: "part one " } },
+    });
+    expect(frames[1]).toMatchObject({
+      method: "notifications/message",
+      params: { data: { type: "text", text: "part two" } },
+    });
+    expect(frames[2]).toMatchObject({
+      jsonrpc: "2.0",
+      id: 4,
+      result: {
+        content: [{ type: "text", text: "part one part two" }],
+        isError: false,
+      },
+    });
+    await app.close();
+  });
 });
