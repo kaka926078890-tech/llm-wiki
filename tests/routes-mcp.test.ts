@@ -89,7 +89,10 @@ describe("routes-mcp", () => {
     const body = res.json() as {
       result: { tools: Array<{ name: string; inputSchema: { required?: string[] } }> };
     };
-    expect(body.result.tools[0]?.name).toBe("ask_llm_wiki");
+    expect(body.result.tools.map((tool) => tool.name)).toEqual([
+      "ask_llm_wiki",
+      "read_llm_wiki_result",
+    ]);
     expect(body.result.tools[0]?.inputSchema.required).toContain("question");
     await app.close();
   });
@@ -150,7 +153,7 @@ describe("routes-mcp", () => {
     await app.close();
   });
 
-  it("truncates oversized ask_llm_wiki results for MCP clients", async () => {
+  it("stores oversized ask_llm_wiki results and returns a first chunk", async () => {
     const events: LoopEvent[] = [
       {
         turn: 1,
@@ -186,8 +189,72 @@ describe("routes-mcp", () => {
       result: { content: Array<{ type: string; text: string }>; isError: boolean };
     };
     const text = body.result.content[0]?.text ?? "";
-    expect(text.length).toBeLessThanOrEqual(1_000);
-    expect(text).toContain("llm-wiki truncated this MCP result");
+    expect(text.length).toBeLessThanOrEqual(1_200);
+    expect(text).toContain("llm-wiki result_id: wiki_");
+    expect(text).toContain("next_cursor:");
+    expect(text).not.toContain("truncated");
+    await app.close();
+  });
+
+  it("reads cached llm-wiki result chunks without rerunning the loop", async () => {
+    const step = vi.fn(async function* () {
+      yield {
+        turn: 1,
+        role: "assistant_final",
+        content: "abcdef",
+      } satisfies LoopEvent;
+      yield { turn: 1, role: "done", content: "" } satisfies LoopEvent;
+    });
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+    });
+
+    const ask = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 10,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "Cache this",
+            max_answer_chars: 1_000,
+          },
+        },
+      },
+    });
+    const askText = (ask.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    const resultId = askText.match(/llm-wiki result_id: (wiki_[^\n]+)/)?.[1];
+    expect(resultId).toEqual(expect.stringMatching(/^wiki_/));
+
+    const read = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 11,
+        method: "tools/call",
+        params: {
+          name: "read_llm_wiki_result",
+          arguments: {
+            result_id: resultId,
+            cursor: 3,
+            max_chars: 3,
+          },
+        },
+      },
+    });
+
+    expect(read.statusCode).toBe(200);
+    const readText = (read.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(readText).toContain("chars: 3-6 of 6");
+    expect(readText).toContain("def");
+    expect(step).toHaveBeenCalledTimes(1);
     await app.close();
   });
 
@@ -252,7 +319,7 @@ describe("routes-mcp", () => {
       jsonrpc: "2.0",
       id: 4,
       result: {
-        content: [{ type: "text", text: "part one part two" }],
+        content: [{ type: "text", text: expect.stringContaining("part one part two") }],
         isError: false,
       },
     });

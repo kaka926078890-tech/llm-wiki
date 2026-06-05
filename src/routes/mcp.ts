@@ -11,6 +11,7 @@ const MCP_PROTOCOL_VERSION = "2025-03-26";
 const SERVER_NAME = "llm-wiki";
 const SERVER_VERSION = "0.1.0";
 const ASK_TOOL_NAME = "ask_llm_wiki";
+const READ_RESULT_TOOL_NAME = "read_llm_wiki_result";
 
 type JsonRpcId = string | number | null;
 
@@ -46,8 +47,24 @@ interface AskToolArguments {
   max_answer_chars?: number;
 }
 
-const DEFAULT_MAX_ANSWER_CHARS = 6_000;
-const HARD_MAX_ANSWER_CHARS = 12_000;
+interface ReadResultArguments {
+  result_id: string;
+  cursor?: number;
+  max_chars?: number;
+}
+
+interface StoredResult {
+  id: string;
+  createdAt: number;
+  question: string;
+  text: string;
+}
+
+const DEFAULT_MAX_ANSWER_CHARS = 3_000;
+const HARD_MAX_ANSWER_CHARS = 8_000;
+const DEFAULT_CHUNK_CHARS = 3_000;
+const HARD_CHUNK_CHARS = 8_000;
+const MAX_STORED_RESULTS = 100;
 
 type StreamChunk = {
   type: "text" | "trace";
@@ -59,7 +76,7 @@ type StreamChunkHandler = (chunk: StreamChunk) => void;
 const askToolDefinition = {
   name: ASK_TOOL_NAME,
   description:
-    "Ask llm-wiki to inspect the authorized ChatKit/FinClaw repositories and answer with code-grounded evidence.",
+    "Ask llm-wiki to inspect the authorized ChatKit/FinClaw repositories once. The full answer is cached; this tool returns a concise first chunk plus a result_id for read_llm_wiki_result when more detail is needed.",
   inputSchema: {
     type: "object",
     properties: {
@@ -79,12 +96,40 @@ const askToolDefinition = {
       max_answer_chars: {
         type: "integer",
         description:
-          "Maximum response characters returned to the MCP client. Defaults to 6000 and is capped at 12000.",
+          "Maximum first-chunk characters returned to the MCP client. Defaults to 3000 and is capped at 8000. Full answer remains available via read_llm_wiki_result.",
         minimum: 1000,
         maximum: HARD_MAX_ANSWER_CHARS,
       },
     },
     required: ["question"],
+    additionalProperties: false,
+  },
+};
+
+const readResultToolDefinition = {
+  name: READ_RESULT_TOOL_NAME,
+  description:
+    "Read a cached llm-wiki answer by result_id without rerunning repository analysis. Use cursor from the previous response to get the next chunk.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      result_id: {
+        type: "string",
+        description: "The result_id returned by ask_llm_wiki.",
+      },
+      cursor: {
+        type: "integer",
+        description: "Character offset to read from. Defaults to 0.",
+        minimum: 0,
+      },
+      max_chars: {
+        type: "integer",
+        description: "Maximum chunk characters to return. Defaults to 3000 and is capped at 8000.",
+        minimum: 500,
+        maximum: HARD_CHUNK_CHARS,
+      },
+    },
+    required: ["result_id"],
     additionalProperties: false,
   },
 };
@@ -132,17 +177,55 @@ function parseAskArgs(value: unknown): AskToolArguments {
   };
 }
 
+function parseReadResultArgs(value: unknown): ReadResultArguments {
+  const args = asRecord(value);
+  const resultId = typeof args.result_id === "string" ? args.result_id.trim() : "";
+  if (!resultId) throw new Error('read_llm_wiki_result requires a non-empty "result_id" argument');
+  return {
+    result_id: resultId,
+    cursor:
+      typeof args.cursor === "number" && Number.isFinite(args.cursor)
+        ? Math.max(0, Math.floor(args.cursor))
+        : 0,
+    max_chars: normalizeChunkChars(args.max_chars),
+  };
+}
+
 function normalizeMaxAnswerChars(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MAX_ANSWER_CHARS;
   return Math.min(HARD_MAX_ANSWER_CHARS, Math.max(1_000, Math.floor(value)));
 }
 
-function truncateAnswer(text: string, maxChars: number): string {
-  if (text.length <= maxChars) return text;
-  const note =
-    "\n\n[llm-wiki truncated this MCP result. Ask a narrower follow-up question or raise max_answer_chars up to 12000.]";
-  const budget = Math.max(0, maxChars - note.length);
-  return `${text.slice(0, budget).trimEnd()}${note}`;
+function normalizeChunkChars(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_CHUNK_CHARS;
+  return Math.min(HARD_CHUNK_CHARS, Math.max(500, Math.floor(value)));
+}
+
+function sliceByChars(text: string, cursor: number, maxChars: number): {
+  chunk: string;
+  nextCursor: number | null;
+  totalChars: number;
+} {
+  const chars = [...text];
+  const start = Math.min(cursor, chars.length);
+  const end = Math.min(chars.length, start + maxChars);
+  return {
+    chunk: chars.slice(start, end).join(""),
+    nextCursor: end < chars.length ? end : null,
+    totalChars: chars.length,
+  };
+}
+
+function renderStoredChunk(stored: StoredResult, cursor: number, maxChars: number): string {
+  const { chunk, nextCursor, totalChars } = sliceByChars(stored.text, cursor, maxChars);
+  const header = [
+    `llm-wiki result_id: ${stored.id}`,
+    `chars: ${Math.min(cursor, totalChars)}-${nextCursor ?? totalChars} of ${totalChars}`,
+    nextCursor === null
+      ? "next_cursor: null"
+      : `next_cursor: ${nextCursor} (call read_llm_wiki_result with this cursor for the next chunk)`,
+  ].join("\n");
+  return `${header}\n\n${chunk}`;
 }
 
 function acceptsEventStream(headers: IncomingHttpHeaders): boolean {
@@ -217,7 +300,7 @@ async function runAskTool(
   if (args.include_reasoning && traceParts.length > 0) {
     sections.push(`\nTool trace:\n${traceParts.join("\n")}`);
   }
-  return truncateAnswer(sections.join("\n").trim(), args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS);
+  return sections.join("\n").trim();
 }
 
 export async function registerMcpRoutes(
@@ -226,6 +309,23 @@ export async function registerMcpRoutes(
   buildLoopFn: BuildLoopFn = buildLoop,
 ): Promise<void> {
   const sessions = new Set<string>();
+  const results = new Map<string, StoredResult>();
+
+  const saveResult = (question: string, text: string): StoredResult => {
+    const stored: StoredResult = {
+      id: `wiki_${randomUUID()}`,
+      createdAt: Date.now(),
+      question,
+      text,
+    };
+    results.set(stored.id, stored);
+    while (results.size > MAX_STORED_RESULTS) {
+      const oldest = [...results.values()].sort((a, b) => a.createdAt - b.createdAt)[0];
+      if (!oldest) break;
+      results.delete(oldest.id);
+    }
+    return stored;
+  };
 
   app.get("/mcp", async (_request, reply) => {
     reply.hijack();
@@ -282,15 +382,44 @@ export async function registerMcpRoutes(
       }
 
       if (method === "tools/list") {
-        return reply.send(success(id, { tools: [askToolDefinition] }));
+        return reply.send(success(id, { tools: [askToolDefinition, readResultToolDefinition] }));
       }
 
       if (method === "tools/call") {
         const params = asRecord(body.params);
         const name = typeof params.name === "string" ? params.name : "";
-        if (name !== ASK_TOOL_NAME) {
+        if (name !== ASK_TOOL_NAME && name !== READ_RESULT_TOOL_NAME) {
           return reply.send(failure(id, -32602, `Unknown tool: ${name || "(missing)"}`));
         }
+        if (name === READ_RESULT_TOOL_NAME) {
+          const args = parseReadResultArgs(params.arguments);
+          const stored = results.get(args.result_id);
+          if (!stored) {
+            return reply.send(
+              success(id, {
+                content: [
+                  {
+                    type: "text",
+                    text: `No cached llm-wiki result found for result_id "${args.result_id}". Ask with ${ASK_TOOL_NAME} again to create a fresh cached result.`,
+                  },
+                ],
+                isError: true,
+              }),
+            );
+          }
+          return reply.send(
+            success(id, {
+              content: [
+                {
+                  type: "text",
+                  text: renderStoredChunk(stored, args.cursor ?? 0, args.max_chars ?? DEFAULT_CHUNK_CHARS),
+                },
+              ],
+              isError: false,
+            }),
+          );
+        }
+
         const args = parseAskArgs(params.arguments);
         const loop = buildLoopFn(cfg);
         if (acceptsEventStream(request.headers)) {
@@ -306,11 +435,17 @@ export async function registerMcpRoutes(
                 reply.raw.write(sseFrame(chunkNotification(chunk)));
               }
             });
+            const stored = saveResult(args.question, text);
+            const firstChunk = renderStoredChunk(
+              stored,
+              0,
+              args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS,
+            );
             if (!reply.raw.destroyed && !reply.raw.writableEnded) {
               reply.raw.write(
                 sseFrame(
                   success(id, {
-                    content: [{ type: "text", text }],
+                    content: [{ type: "text", text: firstChunk }],
                     isError: false,
                   }),
                 ),
@@ -335,9 +470,19 @@ export async function registerMcpRoutes(
         }
 
         const text = await runAskTool(loop, args);
+        const stored = saveResult(args.question, text);
         return reply.send(
           success(id, {
-            content: [{ type: "text", text }],
+            content: [
+              {
+                type: "text",
+                text: renderStoredChunk(
+                  stored,
+                  0,
+                  args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS,
+                ),
+              },
+            ],
             isError: false,
           }),
         );
