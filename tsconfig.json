@@ -22,7 +22,6 @@
     "src/core/code/file-encoding.ts",
     "src/core/tools/fs/edit.ts",
     "src/core/mcp/registry.ts",
-    "src/core/index/config.ts",
     "src/core/tools/fs/glob.ts",
     "src/core/i18n/EN.ts",
     "src/core/code-query/**"

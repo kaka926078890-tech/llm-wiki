@@ -66,6 +66,7 @@ cd frontend && npm install && cd ..
 |------|------|
 | `npm run dev` | 同时启动后端（Fastify + SSE）与前端 Vite dev server |
 | `npm run sync:code` | clone/pull `code/` 下的三个并行代码仓库 |
+| `npm run index` | （可选）在 TEI 可用时为 `code/` 下三个 repo 构建语义索引；**更换 embedding 模型后必须重新执行** |
 | `npm test` | 后端 vitest（根目录 `tests/`） |
 | `npm run build` | 构建前端 `frontend/dist` 并编译后端 TypeScript |
 
@@ -76,6 +77,56 @@ cd frontend && npm test && npm run build
 ```
 
 开发时访问 `http://127.0.0.1:3001`（后端托管前端静态资源）。
+
+## Optional semantic search
+
+语义搜索是**可选功能**。默认 `npm run dev` 无需 TEI/BGE 即可运行，Agent 使用 lexical 工具（`search_content`、`glob` 等）检索代码。
+
+启用条件：
+
+1. 可访问的 TEI 兼容 HTTP embeddings 服务（`LLM_WIKI_TEI_BASE_URL`）
+2. 已为各 repo 构建本地语义索引
+
+推荐流程：
+
+```bash
+npm run sync:code
+# 在 .env 中配置 LLM_WIKI_TEI_* 变量（见 .env.example）
+npm run index
+npm run dev:server
+```
+
+相关环境变量见 `.env.example`。`LLM_WIKI_SEMANTIC_ENABLED=auto`（默认）时，仅当 TEI 探测成功且至少存在一个有效索引时，loop 内才会注册 `semantic_search` 工具。`LLM_WIKI_SEMANTIC_ENABLED=true` 但不可用时，启动时会打印警告并继续以 lexical 模式运行。
+
+索引文件位于各 clone 仓库内：`code/<repo>/.reasonix/semantic/index.json`。它们属于本地 artifact（`code/` 已被 llm-wiki git 忽略），不会提交到 llm-wiki 仓库。
+
+索引构建使用 `src/core/index/config.ts` 的共享过滤规则（排除目录/文件/扩展名、文件大小上限），并尊重各 repo 根目录的 `.gitignore`。
+
+### Embedding model and re-indexing
+
+**为何与模型绑定：** 语义向量由 embedding 模型生成。每个 `index.json` 会记录构建时使用的模型 id（`LLM_WIKI_TEI_MODEL`）。查询时的 embedding 必须使用**相同**模型，否则相似度分数无意义。
+
+**何时需要重新 `npm run index`：**
+
+| 场景 | 操作 |
+|------|------|
+| 首次启用 | `npm run sync:code` 后，TEI 就绪时执行 `npm run index` |
+| 代码有较大变更 | 手动 re-index，使搜索覆盖新/改文件（v1 无自动同步） |
+| **修改 `LLM_WIKI_TEI_MODEL`** | **必须**对三个 repo 全部 re-index |
+| TEI 服务换成别的模型 | 将 `LLM_WIKI_TEI_MODEL` 改为对应 id，再 re-index |
+
+**换模型示例：**
+
+```bash
+# .env — 例如从 bge-m3 换到另一个模型
+LLM_WIKI_TEI_MODEL=BAAI/bge-large-zh-v1.5
+LLM_WIKI_TEI_BASE_URL=http://127.0.0.1:8080
+
+npm run index
+npm run dev:server
+```
+
+**若忘记 re-index：** llm-wiki 会跳过 `index.json` 中 `model` 与当前 `LLM_WIKI_TEI_MODEL` 不一致的索引并打印警告；在重建索引前 `semantic_search` 可能不会注册。
 
 ## MCP server
 
@@ -91,10 +142,9 @@ cd frontend && npm test && npm run build
 
 | Tool | 参数 | 说明 |
 |------|------|------|
-| `ask_llm_wiki` | `question`、`repo_scope?`、`max_answer_chars?` | 复用 llm-wiki Agent loop 检索三个授权 repo；只返回 `result_id`，不返回正文或内部证据 |
-| `read_llm_wiki_result` | `result_id`、`cursor?`、`max_chars?` | 分段读取已缓存的公开答案；不传 `cursor` 时自动续读下一段，不重新运行 repo 检索 |
+| `ask_llm_wiki` | `question`、`repo_scope?` | 运行 llm-wiki Agent loop 检索三个授权 repo，直接返回完整答案 |
 
-MCP 工具结果面向 Admin 执行日志做了公开化处理：`ask_llm_wiki` 只暴露缓存句柄，`read_llm_wiki_result` 返回的内容会移除代码块、源码路径、文件行号、tool trace 和内部证据链接。
+`semantic_search` 是 loop 内部工具，不单独暴露在 MCP `tools/list`；启用语义搜索后，Agent 在回答描述性问题时会自动使用它。
 
 在 `chatkit-middleware/tools/chatkit-web/chatkit-admin-mt` 的 MCP tools 页面新增 server，或写入 `chatkit-middleware/config/mcp-servers.yaml`：
 
@@ -108,7 +158,6 @@ servers:
     allow_private: true
     tools_include:
       - ask_llm_wiki
-      - read_llm_wiki_result
     tools_exclude: []
 ```
 
@@ -118,7 +167,7 @@ servers:
 url: http://host.docker.internal:3001/mcp
 ```
 
-保存后在 Admin 中执行 reconnect/reload，看到 `ask_llm_wiki` 和 `read_llm_wiki_result` 即表示已接入运行时工具目录。
+保存后在 Admin 中执行 reconnect/reload，看到 `ask_llm_wiki` 即表示已接入。
 
 ## Manual acceptance checklist (V1–V5)
 

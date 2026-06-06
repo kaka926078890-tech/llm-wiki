@@ -1,37 +1,30 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { getProjectRoot, type LlmWikiConfig } from "../src/config.js";
+import { getProjectRoot, loadConfig, type LlmWikiConfig } from "../src/config.js";
 import { Usage } from "../src/core/client.js";
 import { buildLoop } from "../src/loop-runner.js";
 import type { ToolCall } from "../src/core/types.js";
 import type { LoopEvent } from "../src/core/loop/types.js";
 
 function testConfig(): LlmWikiConfig {
-  const projectRoot = getProjectRoot();
-  return {
-    projectRoot,
-    deepseekApiKey: "test-key",
-    deepseekBaseUrl: "https://api.deepseek.com",
-    deepseekModel: "deepseek-chat",
-    port: 3001,
-    host: "127.0.0.1",
-    repos: {
-      middleware: projectRoot,
-      web: projectRoot,
-      finclaw: projectRoot,
-    },
-  };
+  return loadConfig({
+    DEEPSEEK_API_KEY: "test-key",
+    REPO_CHATKIT_MIDDLEWARE: getProjectRoot(),
+    REPO_CHATKIT_WEB: getProjectRoot(),
+    REPO_FINCLAW: getProjectRoot(),
+    LLM_WIKI_TEI_BASE_URL: "",
+  });
 }
 
 describe("loop-smoke", () => {
-  it("P1-LOOP-01 buildLoop returns a runnable instance", () => {
-    const loop = buildLoop(testConfig());
+  it("P1-LOOP-01 buildLoop returns a runnable instance", async () => {
+    const loop = await buildLoop(testConfig());
     expect(loop).toBeDefined();
     expect(typeof loop.step).toBe("function");
   });
 
   it("P1-LOOP-02 mock LLM tool_call executes at least one tool", async () => {
-    const loop = buildLoop(testConfig());
+    const loop = await buildLoop(testConfig());
     const toolCalls: ToolCall[] = [
       {
         id: "call-1",
@@ -71,7 +64,7 @@ describe("loop-smoke", () => {
   });
 
   it("P1-LOOP-03 mock final assistant yields assistant_final or done", async () => {
-    const loop = buildLoop(testConfig());
+    const loop = await buildLoop(testConfig());
 
     vi.spyOn(loop.client, "chat").mockResolvedValue({
       content: "Done answering.",

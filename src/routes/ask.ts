@@ -13,7 +13,7 @@ export interface AgentRunBody {
   messages: ChatMessage[];
 }
 
-export type BuildLoopFn = (cfg: LlmWikiConfig) => CacheFirstLoop;
+export type BuildLoopFn = (cfg: LlmWikiConfig) => Promise<CacheFirstLoop>;
 
 function parseAgentRunBody(body: unknown): AgentRunBody | null {
   if (!body || typeof body !== "object") return null;
@@ -54,7 +54,7 @@ export async function registerAskRoutes(
       return reply.code(400).send({ error: "No user message in messages" });
     }
 
-    const loop = buildLoopFn(cfg);
+    const loop = await buildLoopFn(cfg);
 
     reply.hijack();
     reply.raw.writeHead(200, {

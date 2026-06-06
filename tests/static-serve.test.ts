@@ -3,23 +3,16 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { createApp } from "../src/app.js";
-import { getProjectRoot, type LlmWikiConfig } from "../src/config.js";
+import { getProjectRoot, loadConfig, type LlmWikiConfig } from "../src/config.js";
 
 function testConfig(): LlmWikiConfig {
-  const projectRoot = getProjectRoot();
-  return {
-    projectRoot,
-    deepseekApiKey: "test-key",
-    deepseekBaseUrl: "https://api.deepseek.com",
-    deepseekModel: "deepseek-chat",
-    port: 3001,
-    host: "127.0.0.1",
-    repos: {
-      middleware: projectRoot,
-      web: projectRoot,
-      finclaw: projectRoot,
-    },
-  };
+  return loadConfig({
+    DEEPSEEK_API_KEY: "test-key",
+    REPO_CHATKIT_MIDDLEWARE: getProjectRoot(),
+    REPO_CHATKIT_WEB: getProjectRoot(),
+    REPO_FINCLAW: getProjectRoot(),
+    LLM_WIKI_TEI_BASE_URL: "",
+  });
 }
 
 const distIndex = path.join(getProjectRoot(), "frontend/dist/index.html");

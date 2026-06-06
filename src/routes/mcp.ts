@@ -11,7 +11,6 @@ const MCP_PROTOCOL_VERSION = "2025-03-26";
 const SERVER_NAME = "llm-wiki";
 const SERVER_VERSION = "0.1.0";
 const ASK_TOOL_NAME = "ask_llm_wiki";
-const READ_RESULT_TOOL_NAME = "read_llm_wiki_result";
 
 type JsonRpcId = string | number | null;
 
@@ -43,40 +42,17 @@ type JsonRpcResponse = JsonRpcSuccess | JsonRpcFailure;
 interface AskToolArguments {
   question: string;
   repo_scope?: string;
-  max_answer_chars?: number;
 }
-
-interface ReadResultArguments {
-  result_id: string;
-  cursor?: number;
-  max_chars?: number;
-}
-
-interface StoredResult {
-  id: string;
-  createdAt: number;
-  question: string;
-  text: string;
-  nextCursor: number | null;
-}
-
-const DEFAULT_MAX_ANSWER_CHARS = 2_000;
-const HARD_MAX_ANSWER_CHARS = 8_000;
-const DEFAULT_CHUNK_CHARS = 2_000;
-const HARD_CHUNK_CHARS = 8_000;
-const MAX_STORED_RESULTS = 100;
-
-const FRONTLINE_NO_CODE_INSTRUCTIONS = [
-  "Answer for frontline non-technical users.",
-  "最终答案必须面向一线非技术开发人员：说明用户能做什么、在哪里操作、需要什么权限、推荐操作步骤、业务含义和注意事项。",
-  "禁止返回任何代码。不要返回代码块、函数实现、接口定义、配置片段、JSON、YAML、SQL、shell 命令、TypeScript、React、CSS 或伪代码。",
-  "不要暴露源码路径、文件名、行号、组件名、函数名、接口名或内部证据链接；只输出用户可见能力和业务说明。",
-].join("\n");
 
 const askToolDefinition = {
   name: ASK_TOOL_NAME,
   description:
-    "Ask llm-wiki to inspect the authorized ChatKit/FinClaw repositories once. The full answer is cached; this tool returns a concise first chunk plus a result_id for read_llm_wiki_result when more detail is needed.",
+    [
+      "Ask llm-wiki to inspect the authorized ChatKit/FinClaw repositories once and return a complete answer directly.",
+      "Use this tool for repository knowledge questions, then Answer the user from the received result.",
+      "Do not call this tool again for the same user question just because the result is long or the UI/model context mentions truncation, size limits, or prompt budget.",
+      "The tool has no pagination or continuation API; do not infer that more content is available unless the user explicitly asks a new, narrower follow-up question.",
+    ].join(" "),
   inputSchema: {
     type: "object",
     properties: {
@@ -89,44 +65,8 @@ const askToolDefinition = {
         description:
           "Optional scope hint, for example chatkit-middleware, chatkit-web, finclaw, or all.",
       },
-      max_answer_chars: {
-        type: "integer",
-        description:
-          "Maximum first-chunk characters returned to the MCP client. Defaults to 2000 and is capped at 8000. Full answer remains available via read_llm_wiki_result.",
-        minimum: 1000,
-        maximum: HARD_MAX_ANSWER_CHARS,
-      },
     },
     required: ["question"],
-    additionalProperties: false,
-  },
-};
-
-const readResultToolDefinition = {
-  name: READ_RESULT_TOOL_NAME,
-  description:
-    "Read a cached llm-wiki answer by result_id without rerunning repository analysis. Use cursor from the previous response to get the next chunk.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      result_id: {
-        type: "string",
-        description: "The result_id returned by ask_llm_wiki.",
-      },
-      cursor: {
-        type: "integer",
-        description:
-          "Character offset to read from. Optional: when omitted, the server automatically returns the next unread chunk for this result_id.",
-        minimum: 0,
-      },
-      max_chars: {
-        type: "integer",
-        description: "Maximum chunk characters to return. Defaults to 2000 and is capped at 8000.",
-        minimum: 500,
-        maximum: HARD_CHUNK_CHARS,
-      },
-    },
-    required: ["result_id"],
     additionalProperties: false,
   },
 };
@@ -169,98 +109,7 @@ function parseAskArgs(value: unknown): AskToolArguments {
   return {
     question,
     repo_scope: typeof args.repo_scope === "string" ? args.repo_scope.trim() : undefined,
-    max_answer_chars: normalizeMaxAnswerChars(args.max_answer_chars),
   };
-}
-
-function parseReadResultArgs(value: unknown): ReadResultArguments {
-  const args = asRecord(value);
-  const resultId = typeof args.result_id === "string" ? args.result_id.trim() : "";
-  if (!resultId) throw new Error('read_llm_wiki_result requires a non-empty "result_id" argument');
-  return {
-    result_id: resultId,
-    cursor:
-      typeof args.cursor === "number" && Number.isFinite(args.cursor)
-        ? Math.max(0, Math.floor(args.cursor))
-        : undefined,
-    max_chars: normalizeChunkChars(args.max_chars),
-  };
-}
-
-function normalizeMaxAnswerChars(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_MAX_ANSWER_CHARS;
-  return Math.min(HARD_MAX_ANSWER_CHARS, Math.max(1_000, Math.floor(value)));
-}
-
-function normalizeChunkChars(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value)) return DEFAULT_CHUNK_CHARS;
-  return Math.min(HARD_CHUNK_CHARS, Math.max(500, Math.floor(value)));
-}
-
-function sliceByChars(text: string, cursor: number, maxChars: number): {
-  chunk: string;
-  nextCursor: number | null;
-  totalChars: number;
-} {
-  const chars = [...text];
-  const start = Math.min(cursor, chars.length);
-  const end = Math.min(chars.length, start + maxChars);
-  return {
-    chunk: chars.slice(start, end).join(""),
-    nextCursor: end < chars.length ? end : null,
-    totalChars: chars.length,
-  };
-}
-
-function renderStoredChunk(stored: StoredResult, cursor: number, maxChars: number): string {
-  const { chunk, nextCursor, totalChars } = sliceByChars(stored.text, cursor, maxChars);
-  stored.nextCursor = nextCursor;
-  const header = [
-    "llm-wiki cached_result_chunk",
-    `result_id: ${stored.id}`,
-    `range: ${Math.min(cursor, totalChars)}-${nextCursor ?? totalChars} of ${totalChars}`,
-    `more_available: ${nextCursor === null ? "false" : "true"}`,
-    nextCursor === null
-      ? "next_action: answer the user from the gathered chunks; do not call ask_llm_wiki again for this same question."
-      : `next_cursor: ${nextCursor}; next_action: call read_llm_wiki_result with this result_id to continue, or omit cursor to auto-read the next chunk. Do not call ask_llm_wiki again for this same question.`,
-  ].join("\n");
-  return `${header}\n\n${chunk}`;
-}
-
-function renderPreparedHandle(stored: StoredResult): string {
-  return [
-    "llm-wiki result prepared",
-    `result_id: ${stored.id}`,
-    `total_chars: ${[...stored.text].length}`,
-    "next_action: call read_llm_wiki_result with this result_id to read the public, code-redacted answer.",
-  ].join("\n");
-}
-
-function sanitizePublicAnswer(text: string): string {
-  const withoutCodeBlocks = text.replace(/```[\s\S]*?```/g, "[已隐藏代码片段]");
-  const withoutTrace = withoutCodeBlocks
-    .split(/\r?\n/)
-    .filter((line) => !/^\s*(Tool trace|Reasoning trace)\s*:/i.test(line))
-    .filter((line) => !/^\s*(tool_start|tool_result|warning)\b/i.test(line))
-    .join("\n");
-  const withoutSourceLinks = withoutTrace.replace(
-    /\[([^\]]+)]\(([^)]*(?:\.(?:ts|tsx|js|jsx|rs|go|py|java|json|ya?ml|css|scss|html|md)|\/|\\)[^)]*)\)/gi,
-    "已核验内部证据",
-  );
-  const withoutInlineCode = withoutSourceLinks.replace(/`[^`]*`/g, "相关功能项");
-  const withoutPathLines = withoutInlineCode
-    .split(/\r?\n/)
-    .filter((line) => {
-      if (/(^|\s)(?:\.{0,2}\/|src\/|app\/|crates\/|tools\/|packages\/)/i.test(line)) {
-        return false;
-      }
-      if (/\b[\w.-]+\.(?:ts|tsx|js|jsx|rs|go|py|java|json|ya?ml|css|scss|html|md)(?::\d+)?\b/i.test(line)) {
-        return false;
-      }
-      return true;
-    })
-    .join("\n");
-  return withoutPathLines.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function acceptsEventStream(headers: IncomingHttpHeaders): boolean {
@@ -278,8 +127,6 @@ async function runAskTool(
   const promptParts = [
     args.repo_scope && args.repo_scope !== "all" ? `[repo_scope: ${args.repo_scope}]` : null,
     args.question,
-    FRONTLINE_NO_CODE_INSTRUCTIONS,
-    `Please answer concisely and stay under ${args.max_answer_chars ?? DEFAULT_MAX_ANSWER_CHARS} characters.`,
   ].filter((part): part is string => Boolean(part));
   const question = promptParts.join("\n\n");
   const answerParts: string[] = [];
@@ -306,24 +153,6 @@ export async function registerMcpRoutes(
   buildLoopFn: BuildLoopFn = buildLoop,
 ): Promise<void> {
   const sessions = new Set<string>();
-  const results = new Map<string, StoredResult>();
-
-  const saveResult = (question: string, text: string): StoredResult => {
-    const stored: StoredResult = {
-      id: `wiki_${randomUUID()}`,
-      createdAt: Date.now(),
-      question,
-      text,
-      nextCursor: 0,
-    };
-    results.set(stored.id, stored);
-    while (results.size > MAX_STORED_RESULTS) {
-      const oldest = [...results.values()].sort((a, b) => a.createdAt - b.createdAt)[0];
-      if (!oldest) break;
-      results.delete(oldest.id);
-    }
-    return stored;
-  };
 
   app.get("/mcp", async (_request, reply) => {
     reply.hijack();
@@ -380,50 +209,18 @@ export async function registerMcpRoutes(
       }
 
       if (method === "tools/list") {
-        return reply.send(success(id, { tools: [askToolDefinition, readResultToolDefinition] }));
+        return reply.send(success(id, { tools: [askToolDefinition] }));
       }
 
       if (method === "tools/call") {
         const params = asRecord(body.params);
         const name = typeof params.name === "string" ? params.name : "";
-        if (name !== ASK_TOOL_NAME && name !== READ_RESULT_TOOL_NAME) {
+        if (name !== ASK_TOOL_NAME) {
           return reply.send(failure(id, -32602, `Unknown tool: ${name || "(missing)"}`));
-        }
-        if (name === READ_RESULT_TOOL_NAME) {
-          const args = parseReadResultArgs(params.arguments);
-          const stored = results.get(args.result_id);
-          if (!stored) {
-            return reply.send(
-              success(id, {
-                content: [
-                  {
-                    type: "text",
-                    text: `No cached llm-wiki result found for result_id "${args.result_id}". Ask with ${ASK_TOOL_NAME} again to create a fresh cached result.`,
-                  },
-                ],
-                isError: true,
-              }),
-            );
-          }
-          return reply.send(
-            success(id, {
-              content: [
-                {
-                  type: "text",
-                  text: renderStoredChunk(
-                    stored,
-                    args.cursor ?? stored.nextCursor ?? 0,
-                    args.max_chars ?? DEFAULT_CHUNK_CHARS,
-                  ),
-                },
-              ],
-              isError: false,
-            }),
-          );
         }
 
         const args = parseAskArgs(params.arguments);
-        const loop = buildLoopFn(cfg);
+        const loop = await buildLoopFn(cfg);
         if (acceptsEventStream(request.headers)) {
           reply.hijack();
           reply.raw.writeHead(200, {
@@ -432,13 +229,12 @@ export async function registerMcpRoutes(
             Connection: "keep-alive",
           });
           try {
-            const text = sanitizePublicAnswer(await runAskTool(loop, args));
-            const stored = saveResult(args.question, text);
+            const text = await runAskTool(loop, args);
             if (!reply.raw.destroyed && !reply.raw.writableEnded) {
               reply.raw.write(
                 sseFrame(
                   success(id, {
-                    content: [{ type: "text", text: renderPreparedHandle(stored) }],
+                    content: [{ type: "text", text }],
                     isError: false,
                   }),
                 ),
@@ -462,14 +258,13 @@ export async function registerMcpRoutes(
           return;
         }
 
-        const text = sanitizePublicAnswer(await runAskTool(loop, args));
-        const stored = saveResult(args.question, text);
+        const text = await runAskTool(loop, args);
         return reply.send(
           success(id, {
             content: [
               {
                 type: "text",
-                text: renderPreparedHandle(stored),
+                text,
               },
             ],
             isError: false,

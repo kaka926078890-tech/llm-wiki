@@ -2,25 +2,18 @@ import http from "node:http";
 import { describe, expect, it, vi } from "vitest";
 
 import { createApp } from "../src/app.js";
-import { getProjectRoot, type LlmWikiConfig } from "../src/config.js";
+import { getProjectRoot, loadConfig, type LlmWikiConfig } from "../src/config.js";
 import type { LoopEvent } from "../src/core/loop/types.js";
 import type { CacheFirstLoop } from "../src/loop-runner.js";
 
 function testConfig(): LlmWikiConfig {
-  const projectRoot = getProjectRoot();
-  return {
-    projectRoot,
-    deepseekApiKey: "test-key",
-    deepseekBaseUrl: "https://api.deepseek.com",
-    deepseekModel: "deepseek-chat",
-    port: 0,
-    host: "127.0.0.1",
-    repos: {
-      middleware: projectRoot,
-      web: projectRoot,
-      finclaw: projectRoot,
-    },
-  };
+  return loadConfig({
+    DEEPSEEK_API_KEY: "test-key",
+    REPO_CHATKIT_MIDDLEWARE: getProjectRoot(),
+    REPO_CHATKIT_WEB: getProjectRoot(),
+    REPO_FINCLAW: getProjectRoot(),
+    LLM_WIKI_TEI_BASE_URL: "",
+  });
 }
 
 function parseSsePayloads(body: string): LoopEvent[] {
@@ -51,7 +44,7 @@ describe("routes-ask", () => {
   it("P2-ASK-01 empty body returns 400", async () => {
     const app = await createApp({
       config: testConfig(),
-      buildLoop: () => mockLoop([]),
+      buildLoop: async () => mockLoop([]),
     });
     const res = await app.inject({
       method: "POST",
@@ -75,7 +68,7 @@ describe("routes-ask", () => {
     ];
     const app = await createApp({
       config: testConfig(),
-      buildLoop: () => mockLoop(events),
+      buildLoop: async () => mockLoop(events),
     });
 
     const res = await app.inject({
@@ -119,7 +112,7 @@ describe("routes-ask", () => {
 
     const app = await createApp({
       config: testConfig(),
-      buildLoop: () => loop,
+      buildLoop: async () => loop,
     });
 
     await app.listen({ port: 0, host: "127.0.0.1" });
@@ -184,7 +177,7 @@ describe("routes-ask", () => {
 
     const app = await createApp({
       config: testConfig(),
-      buildLoop: () => loop,
+      buildLoop: async () => loop,
     });
 
     await app.listen({ port: 0, host: "127.0.0.1" });

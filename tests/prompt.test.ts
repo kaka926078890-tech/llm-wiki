@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { loadConfig } from "../src/config.js";
 import { buildSystemPrompt } from "../src/prompt.js";
+import { codeSystemBase } from "../src/prompt-code.js";
 
 describe("prompt", () => {
   const originalEnv = { ...process.env };
@@ -20,16 +21,27 @@ describe("prompt", () => {
     const prompt = buildSystemPrompt(loadConfig());
     expect(prompt).toMatch(/Cite or shut up/i);
     expect(prompt).toMatch(/search_content/i);
+    expect(prompt).toMatch(/directory_tree/i);
+    expect(prompt).toMatch(/glob/i);
+    expect(prompt).toMatch(/get_symbols/i);
+    expect(prompt).toMatch(/find_in_code/i);
+    expect(prompt).toMatch(/semantic_search/i);
     process.env = originalEnv;
   });
 
-  it("P1-PRM-03 prompt targets non-technical frontline users and forbids code output", () => {
+  it("mentions optional semantic_search strategy", () => {
+    const prompt = codeSystemBase("deepseek-chat");
+    expect(prompt).toContain("If `semantic_search` is available");
+    expect(prompt).toContain("descriptive questions");
+    expect(prompt).toContain("For exact symbols");
+  });
+
+  it("P1-PRM-03 prompt does not force frontline non-technical output boundaries", () => {
     process.env.DEEPSEEK_API_KEY = "test-key";
     const prompt = buildSystemPrompt(loadConfig());
-    expect(prompt).toMatch(/一线非技术/);
-    expect(prompt).toMatch(/禁止.*代码/);
-    expect(prompt).toMatch(/不要返回.*代码块/);
-    expect(prompt).toMatch(/操作步骤/);
+    expect(prompt).not.toMatch(/一线非技术/);
+    expect(prompt).not.toMatch(/禁止.*代码/);
+    expect(prompt).not.toMatch(/不要返回.*代码块/);
     process.env = originalEnv;
   });
 });

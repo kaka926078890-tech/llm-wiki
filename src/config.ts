@@ -8,6 +8,20 @@ export interface AuthorizedRoots {
   finclaw: string;
 }
 
+export type SemanticEnabled = true | false | "auto";
+export type EmbeddingProvider = "tei";
+
+export interface SemanticConfig {
+  enabled: SemanticEnabled;
+  provider: EmbeddingProvider;
+  teiBaseUrl: string;
+  teiModel: string;
+  topK: number;
+  chunkChars: number;
+  chunkOverlap: number;
+  indexDir: string;
+}
+
 export interface LlmWikiConfig {
   projectRoot: string;
   deepseekApiKey: string;
@@ -16,6 +30,7 @@ export interface LlmWikiConfig {
   port: number;
   host: string;
   repos: AuthorizedRoots;
+  semantic: SemanticConfig;
 }
 
 const DEFAULT_REPO_MIDDLEWARE = "code/chatkit-middleware";
@@ -52,6 +67,20 @@ function resolveRepoPath(
   return path.resolve(projectRoot, raw);
 }
 
+function parseSemanticEnabled(raw: string | undefined): SemanticEnabled {
+  const normalized = raw?.trim().toLowerCase();
+  if (normalized === "true" || normalized === "1" || normalized === "yes") return true;
+  if (normalized === "false" || normalized === "0" || normalized === "no") return false;
+  return "auto";
+}
+
+function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
 export function loadConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): LlmWikiConfig {
@@ -61,6 +90,9 @@ export function loadConfig(
   }
 
   const projectRoot = getProjectRoot();
+  const chunkChars = clampInt(env.LLM_WIKI_SEMANTIC_CHUNK_CHARS, 1400, 300, 8000);
+  const rawOverlap = clampInt(env.LLM_WIKI_SEMANTIC_CHUNK_OVERLAP, 200, 0, 2000);
+  const chunkOverlap = Math.min(rawOverlap, chunkChars - 1);
 
   return {
     projectRoot,
@@ -81,6 +113,16 @@ export function loadConfig(
         env.REPO_FINCLAW,
         DEFAULT_REPO_FINCLAW,
       ),
+    },
+    semantic: {
+      enabled: parseSemanticEnabled(env.LLM_WIKI_SEMANTIC_ENABLED),
+      provider: "tei",
+      teiBaseUrl: env.LLM_WIKI_TEI_BASE_URL?.trim() || "",
+      teiModel: env.LLM_WIKI_TEI_MODEL?.trim() || "BAAI/bge-m3",
+      topK: clampInt(env.LLM_WIKI_SEMANTIC_TOP_K, 8, 1, 50),
+      chunkChars,
+      chunkOverlap,
+      indexDir: env.LLM_WIKI_SEMANTIC_INDEX_DIR?.trim() || ".reasonix/semantic",
     },
   };
 }
