@@ -135,6 +135,8 @@ npm run dev:server
 
 CodeGraph 提供符号、调用链、影响分析等**结构化图查询**，与 lexical / semantic 工具互补。默认 `npm run dev` 无需 CodeGraph 即可运行；索引未就绪时 `codegraph_search` 会返回 init/sync 提示，Agent 可回退到 lexical 工具。
 
+**注意：** `code/.gitignore` 不能用 blanket `*` 忽略全部内容，否则 CodeGraph 扫描时会认为没有可索引文件（`No files found to index`）。llm-wiki 已改为只忽略三个 clone 目录名。
+
 推荐流程：
 
 ```bash
@@ -143,13 +145,15 @@ npm run codegraph:init
 npm run dev:server
 ```
 
+`codegraph:init` 会在 `code/chatkit-middleware`、`code/chatkit-web`、`code/finclaw` **分别**建立索引（不是对空的 `code/` 父目录 init）。若 `code/` 下没有 clone 出来的仓库，先执行 `npm run sync:code`。
+
 代码有较大变更后手动同步：
 
 ```bash
 npm run codegraph:sync
 ```
 
-索引位于 `code/.codegraph/`（本地 artifact，不提交到 llm-wiki git）。`codegraph_search` 是 loop 内部工具，始终注册；Agent 在符号查找、callers/callees、影响分析等问题上会优先尝试它，再用 `read_file` / `search_content` 验证。
+索引位于各 repo 内的 `code/<repo>/.codegraph/`（本地 artifact，不提交到 llm-wiki git）。`codegraph_search` 会跨三个 repo 查询并合并结果。
 
 | 场景 | 优先工具 |
 |------|----------|

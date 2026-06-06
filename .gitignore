@@ -3,3 +3,10 @@ dist/
 .env
 .DS_Store
 .reasonix/truncated-results/
+
+# Cloned repos and CodeGraph indexes under code/ (local only)
+code/chatkit-middleware/
+code/chatkit-web/
+code/finclaw/
+code/.codegraph/
+code/*/.codegraph/

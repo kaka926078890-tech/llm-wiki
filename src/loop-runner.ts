@@ -45,7 +45,14 @@ async function tryRegisterSemanticTools(tools: ToolRegistry, cfg: LlmWikiConfig)
 export async function buildLoop(cfg: LlmWikiConfig): Promise<CacheFirstLoop> {
   const tools = new ToolRegistry({ autoFlatten: true });
   registerMultiRootReadonlyTools(tools, { roots: cfg.repos });
-  registerCodeGraphSearchTool(tools, { projectRoot: cfg.projectRoot });
+  registerCodeGraphSearchTool(tools, {
+    projectRoot: cfg.projectRoot,
+    repoRoots: {
+      "chatkit-middleware": cfg.repos.middleware,
+      "chatkit-web": cfg.repos.web,
+      finclaw: cfg.repos.finclaw,
+    },
+  });
   await tryRegisterSemanticTools(tools, cfg);
 
   const client = new DeepSeekClient({

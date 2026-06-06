@@ -6,11 +6,13 @@ import type { ToolRegistry } from "../core/tools.js";
 
 const execFileAsync = promisify(execFile);
 const MAX_OUTPUT_BYTES = 512 * 1024;
+const REPO_NAMES = ["chatkit-middleware", "chatkit-web", "finclaw"] as const;
 
 type CodeGraphOperation = "query" | "callers" | "callees" | "impact" | "files" | "status";
 
 export interface RegisterCodeGraphSearchToolOptions {
   projectRoot: string;
+  repoRoots?: Partial<Record<(typeof REPO_NAMES)[number], string>>;
 }
 
 function clampInt(value: number | undefined, fallback: number, min: number, max: number): number {
@@ -18,8 +20,12 @@ function clampInt(value: number | undefined, fallback: number, min: number, max:
   return Math.max(min, Math.min(max, Math.floor(value)));
 }
 
-function codeFolder(projectRoot: string): string {
-  return path.join(projectRoot, "code");
+function resolveRepoPaths(opts: RegisterCodeGraphSearchToolOptions): Array<{ repo: string; path: string }> {
+  const codeRoot = path.join(opts.projectRoot, "code");
+  return REPO_NAMES.map((repo) => ({
+    repo,
+    path: opts.repoRoots?.[repo] ?? path.join(codeRoot, repo),
+  }));
 }
 
 function buildArgs(
@@ -75,19 +81,51 @@ function formatOutput(stdout: string): string {
   }
 }
 
-function missingIndexMessage(projectPath: string): string {
+function missingIndexMessage(repoPaths: Array<{ repo: string; path: string }>): string {
   return [
     "CodeGraph index is unavailable or the query failed.",
-    `Expected project path: ${projectPath}`,
-    "Run `npm run codegraph:init` to create and index `code/`, or `npm run codegraph:sync` after code changes.",
+    "Expected indexes under:",
+    ...repoPaths.map((entry) => `- ${entry.repo}: ${entry.path}`),
+    "Run `npm run sync:code` then `npm run codegraph:init`, or `npm run codegraph:sync` after code changes.",
   ].join("\n");
+}
+
+async function runCodegraph(
+  projectRoot: string,
+  projectPath: string,
+  args: Parameters<typeof buildArgs>[1],
+): Promise<{ ok: true; stdout: string } | { ok: false; error: string }> {
+  const commandArgs = buildArgs(projectPath, args);
+  try {
+    const { stdout } = await execFileAsync("codegraph", commandArgs, {
+      cwd: projectRoot,
+      maxBuffer: MAX_OUTPUT_BYTES,
+      timeout: 30_000,
+    });
+    return { ok: true, stdout };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stderr = typeof (err as { stderr?: unknown }).stderr === "string"
+      ? (err as { stderr: string }).stderr.trim()
+      : "";
+    return { ok: false, error: [stderr, message].filter(Boolean).join("\n") };
+  }
+}
+
+function mergeRankedResults(parsed: unknown[], topK: number): unknown[] {
+  const rows = parsed.flatMap((value) => (Array.isArray(value) ? value : [value]));
+  const scored = rows.filter((row): row is { score?: number } & Record<string, unknown> =>
+    row !== null && typeof row === "object",
+  );
+  scored.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  return scored.slice(0, topK);
 }
 
 export function registerCodeGraphSearchTool(
   registry: ToolRegistry,
   opts: RegisterCodeGraphSearchToolOptions,
 ): void {
-  const projectPath = codeFolder(opts.projectRoot);
+  const repoPaths = resolveRepoPaths(opts);
 
   registry.register({
     name: "codegraph_search",
@@ -95,7 +133,7 @@ export function registerCodeGraphSearchTool(
     parallelSafe: true,
     stormExempt: true,
     description:
-      "Search the local CodeGraph index for code symbols and relationships under the project code/ folder. Use for symbol lookup, callers, callees, impact analysis, indexed file listings, and index status. Requires `npm run codegraph:init` first.",
+      "Search local CodeGraph indexes for code symbols and relationships across chatkit-middleware, chatkit-web, and finclaw. Use for symbol lookup, callers, callees, impact analysis, indexed file listings, and index status. Requires `npm run sync:code` and `npm run codegraph:init` first.",
     parameters: {
       type: "object",
       properties: {
@@ -145,21 +183,50 @@ export function registerCodeGraphSearchTool(
       format?: string;
       max_depth?: number;
     }) => {
-      const commandArgs = buildArgs(projectPath, args);
-      try {
-        const { stdout } = await execFileAsync("codegraph", commandArgs, {
-          cwd: opts.projectRoot,
-          maxBuffer: MAX_OUTPUT_BYTES,
-          timeout: 30_000,
-        });
-        return formatOutput(stdout);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        const stderr = typeof (err as { stderr?: unknown }).stderr === "string"
-          ? (err as { stderr: string }).stderr.trim()
-          : "";
-        return [missingIndexMessage(projectPath), stderr || message].filter(Boolean).join("\n\n");
+      const operation = args.operation ?? "query";
+      const topK = clampInt(args.top_k, operation === "query" ? 10 : 20, 1, 100);
+      const results = await Promise.all(
+        repoPaths.map(async (entry) => ({
+          repo: entry.repo,
+          ...(await runCodegraph(opts.projectRoot, entry.path, args)),
+        })),
+      );
+
+      const failures = results.filter((result) => !result.ok);
+      const successes = results.filter((result) => result.ok);
+
+      if (successes.length === 0) {
+        const detail = failures.map((result) => `${result.repo}: ${result.error}`).join("\n\n");
+        return [missingIndexMessage(repoPaths), detail].filter(Boolean).join("\n\n");
       }
+
+      if (operation === "status") {
+        const payload = Object.fromEntries(
+          successes.map((result) => [result.repo, JSON.parse(result.stdout.trim())]),
+        );
+        return JSON.stringify(payload, null, 2);
+      }
+
+      if (operation === "files") {
+        return successes.map((result) => `## ${result.repo}\n${formatOutput(result.stdout)}`).join("\n\n");
+      }
+
+      const parsed = successes.map((result) => {
+        try {
+          return JSON.parse(result.stdout.trim()) as unknown;
+        } catch {
+          return result.stdout.trim();
+        }
+      });
+      if (operation === "query" || operation === "callers" || operation === "callees" || operation === "impact") {
+        const merged = mergeRankedResults(
+          parsed.filter((value) => value !== null && value !== undefined),
+          topK,
+        );
+        return JSON.stringify(merged, null, 2);
+      }
+
+      return successes.map((result) => `## ${result.repo}\n${formatOutput(result.stdout)}`).join("\n\n");
     },
   });
 }

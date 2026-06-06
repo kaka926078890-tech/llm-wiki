@@ -56,5 +56,6 @@ describe("registerCodeGraphSearchTool", () => {
     });
     expect(result).toContain("CodeGraph index is unavailable");
     expect(result).toContain("npm run codegraph:init");
+    expect(result).toContain("chatkit-middleware");
   });
 });
