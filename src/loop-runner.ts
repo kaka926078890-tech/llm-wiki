@@ -9,6 +9,7 @@ import { TeiEmbeddingClient } from "./core/index/semantic/tei-client.js";
 import { SemanticSearchEngine } from "./core/index/semantic/search.js";
 import { registerMultiRootReadonlyTools } from "./tools/multi-root-readonly.js";
 import { registerSemanticSearchTool } from "./tools/semantic-search.js";
+import { registerCodeGraphSearchTool } from "./tools/codegraph-search.js";
 
 async function tryRegisterSemanticTools(tools: ToolRegistry, cfg: LlmWikiConfig): Promise<void> {
   if (cfg.semantic.enabled === false) return;
@@ -44,6 +45,7 @@ async function tryRegisterSemanticTools(tools: ToolRegistry, cfg: LlmWikiConfig)
 export async function buildLoop(cfg: LlmWikiConfig): Promise<CacheFirstLoop> {
   const tools = new ToolRegistry({ autoFlatten: true });
   registerMultiRootReadonlyTools(tools, { roots: cfg.repos });
+  registerCodeGraphSearchTool(tools, { projectRoot: cfg.projectRoot });
   await tryRegisterSemanticTools(tools, cfg);
 
   const client = new DeepSeekClient({

@@ -23,6 +23,12 @@ describe("loop-smoke", () => {
     expect(typeof loop.step).toBe("function");
   });
 
+  it("P1-LOOP-04 buildLoop registers codegraph_search", async () => {
+    const loop = await buildLoop(testConfig());
+    const names = loop.prefix.toolSpecs.map((spec) => spec.function.name);
+    expect(names).toContain("codegraph_search");
+  });
+
   it("P1-LOOP-02 mock LLM tool_call executes at least one tool", async () => {
     const loop = await buildLoop(testConfig());
     const toolCalls: ToolCall[] = [

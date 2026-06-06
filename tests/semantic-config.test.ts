@@ -16,7 +16,7 @@ describe("semantic config", () => {
     expect(cfg.semantic.provider).toBe("tei");
     expect(cfg.semantic.teiBaseUrl).toBe("");
     expect(cfg.semantic.topK).toBe(8);
-    expect(cfg.semantic.chunkChars).toBe(1400);
+    expect(cfg.semantic.chunkChars).toBe(800);
     expect(cfg.semantic.chunkOverlap).toBe(200);
     expect(cfg.semantic.indexDir).toBe(".reasonix/semantic");
   });
@@ -41,7 +41,7 @@ describe("semantic config", () => {
       teiBaseUrl: "http://127.0.0.1:8080",
       teiModel: "BAAI/bge-large-zh-v1.5",
       topK: 5,
-      chunkChars: 1200,
+      chunkChars: 1000,
       chunkOverlap: 160,
       indexDir: ".reasonix/semantic-custom",
     });

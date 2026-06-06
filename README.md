@@ -67,6 +67,9 @@ cd frontend && npm install && cd ..
 | `npm run dev` | 同时启动后端（Fastify + SSE）与前端 Vite dev server |
 | `npm run sync:code` | clone/pull `code/` 下的三个并行代码仓库 |
 | `npm run index` | （可选）在 TEI 可用时为 `code/` 下三个 repo 构建语义索引；**更换 embedding 模型后必须重新执行** |
+| `npm run codegraph:init` | （可选）在 `code/` 下初始化 CodeGraph 符号索引（首次启用） |
+| `npm run codegraph:sync` | （可选）增量同步 `code/` 的 CodeGraph 索引 |
+| `npm run codegraph:status` | 查看 `code/` 的 CodeGraph 索引状态 |
 | `npm test` | 后端 vitest（根目录 `tests/`） |
 | `npm run build` | 构建前端 `frontend/dist` 并编译后端 TypeScript |
 
@@ -128,6 +131,32 @@ npm run dev:server
 
 **若忘记 re-index：** llm-wiki 会跳过 `index.json` 中 `model` 与当前 `LLM_WIKI_TEI_MODEL` 不一致的索引并打印警告；在重建索引前 `semantic_search` 可能不会注册。
 
+## Optional CodeGraph search
+
+CodeGraph 提供符号、调用链、影响分析等**结构化图查询**，与 lexical / semantic 工具互补。默认 `npm run dev` 无需 CodeGraph 即可运行；索引未就绪时 `codegraph_search` 会返回 init/sync 提示，Agent 可回退到 lexical 工具。
+
+推荐流程：
+
+```bash
+npm run sync:code
+npm run codegraph:init
+npm run dev:server
+```
+
+代码有较大变更后手动同步：
+
+```bash
+npm run codegraph:sync
+```
+
+索引位于 `code/.codegraph/`（本地 artifact，不提交到 llm-wiki git）。`codegraph_search` 是 loop 内部工具，始终注册；Agent 在符号查找、callers/callees、影响分析等问题上会优先尝试它，再用 `read_file` / `search_content` 验证。
+
+| 场景 | 优先工具 |
+|------|----------|
+| 符号、调用链、影响范围 | `codegraph_search` |
+| 宽泛的功能/架构描述 | `semantic_search`（需 TEI + 语义索引） |
+| 精确字符串、路由、env 名 | `search_content` |
+
 ## MCP server
 
 `llm-wiki` 同时暴露标准 MCP Streamable HTTP 端点：
@@ -144,7 +173,7 @@ npm run dev:server
 |------|------|------|
 | `ask_llm_wiki` | `question`、`repo_scope?` | 运行 llm-wiki Agent loop 检索三个授权 repo，直接返回完整答案 |
 
-`semantic_search` 是 loop 内部工具，不单独暴露在 MCP `tools/list`；启用语义搜索后，Agent 在回答描述性问题时会自动使用它。
+`semantic_search` 与 `codegraph_search` 是 loop 内部工具，不单独暴露在 MCP `tools/list`；启用后 Agent 会在合适的问题类型上自动使用它们。
 
 在 `chatkit-middleware/tools/chatkit-web/chatkit-admin-mt` 的 MCP tools 页面新增 server，或写入 `chatkit-middleware/config/mcp-servers.yaml`：
 

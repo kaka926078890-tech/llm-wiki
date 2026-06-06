@@ -10,11 +10,16 @@
     "dev": "concurrently -n backend,frontend -c blue,green \"tsx src/index.ts\" \"npm run dev --prefix frontend\"",
     "dev:server": "tsx src/index.ts",
     "index": "tsx src/semantic-index.ts",
+    "codegraph:init": "codegraph init -i code",
+    "codegraph:sync": "codegraph sync code",
+    "codegraph:status": "codegraph status code",
+    "codegraph:search": "codegraph query -p code",
     "sync:code": "node scripts/sync-code-repos.mjs",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/copy-tree-sitter-grammars.mjs"
   },
   "dependencies": {
+    "@colbymchenry/codegraph": "^0.9.9",
     "@fastify/cors": "^11.2.0",
     "@fastify/static": "^8.2.0",
     "eventsource-parser": "^3.0.0",

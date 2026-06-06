@@ -90,7 +90,7 @@ export function loadConfig(
   }
 
   const projectRoot = getProjectRoot();
-  const chunkChars = clampInt(env.LLM_WIKI_SEMANTIC_CHUNK_CHARS, 1400, 300, 8000);
+  const chunkChars = clampInt(env.LLM_WIKI_SEMANTIC_CHUNK_CHARS, 800, 300, 1000);
   const rawOverlap = clampInt(env.LLM_WIKI_SEMANTIC_CHUNK_OVERLAP, 200, 0, 2000);
   const chunkOverlap = Math.min(rawOverlap, chunkChars - 1);
 

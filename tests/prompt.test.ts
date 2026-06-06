@@ -26,14 +26,17 @@ describe("prompt", () => {
     expect(prompt).toMatch(/get_symbols/i);
     expect(prompt).toMatch(/find_in_code/i);
     expect(prompt).toMatch(/semantic_search/i);
+    expect(prompt).toMatch(/codegraph_search/i);
     process.env = originalEnv;
   });
 
-  it("mentions optional semantic_search strategy", () => {
+  it("mentions codegraph and optional semantic_search strategy", () => {
     const prompt = codeSystemBase("deepseek-chat");
+    expect(prompt).toContain("`codegraph_search`");
+    expect(prompt).toContain("callers/callees");
     expect(prompt).toContain("If `semantic_search` is available");
     expect(prompt).toContain("descriptive questions");
-    expect(prompt).toContain("For exact symbols");
+    expect(prompt).toContain("For exact routes");
   });
 
   it("P1-PRM-03 prompt does not force frontline non-technical output boundaries", () => {
