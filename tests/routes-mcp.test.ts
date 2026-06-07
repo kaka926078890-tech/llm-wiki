@@ -92,9 +92,23 @@ describe("routes-mcp", () => {
     expect(body.result.tools[0]?.inputSchema.required).toContain("question");
     expect(body.result.tools[0]?.inputSchema.properties).not.toHaveProperty("include_reasoning");
     expect(body.result.tools[0]?.inputSchema.properties).not.toHaveProperty("max_answer_chars");
-    expect(body.result.tools[0]?.description).toContain("Do not call this tool again");
-    expect(body.result.tools[0]?.description).toContain("do not infer that more content is available");
-    expect(body.result.tools[0]?.description).toContain("Answer the user from the received result");
+    expect(body.result.tools[0]?.description).toContain("One-shot repository knowledge Q&A");
+    expect(body.result.tools[0]?.description).toContain("not a code-search API");
+    expect(body.result.tools[0]?.description).toContain(
+      "presenting the tool result verbatim",
+    );
+    expect(body.result.tools[0]?.description).toContain("do not rewrite, reformat, summarize, or shorten");
+    expect(body.result.tools[0]?.description).toContain("Do not call again for the same question");
+    const questionSchema = body.result.tools[0]?.inputSchema.properties?.question as
+      | { description?: string }
+      | undefined;
+    expect(questionSchema?.description).toContain("verbatim");
+    expect(questionSchema?.description).toContain("do not rewrite, expand, split, or narrow");
+    const repoScopeSchema = body.result.tools[0]?.inputSchema.properties?.repo_scope as
+      | { description?: string }
+      | undefined;
+    expect(repoScopeSchema?.description).toContain("Usually omit");
+    expect(repoScopeSchema?.description).toContain("middleware=chatkit-middleware");
     await app.close();
   });
 
@@ -152,6 +166,85 @@ describe("routes-mcp", () => {
     expect(res.body).not.toContain("result_id: wiki_");
     expect(res.body).not.toContain("read_llm_wiki_result");
     expect(res.body).not.toContain("tool_start search_content");
+    await app.close();
+  });
+
+  it("summarizes MCP ask answers before returning them", async () => {
+    const rawAnswer =
+      "模板管理支持创建、编辑和发布模板。\n路径 src/services/adminApi.ts:1940。\n```ts\nconst templateApi = createClient();\n```";
+    const summarize = vi.fn(async () => "模板管理支持创建、编辑和发布模板。");
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: async () => mockLoop([
+        {
+          turn: 1,
+          role: "assistant_final",
+          content: rawAnswer,
+        },
+        { turn: 1, role: "done", content: "" },
+      ]),
+      buildAnswerSummaryAgent: async () => ({ summarize }),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 21,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "模板有什么功能？",
+          },
+        },
+      },
+    });
+
+    const text = (res.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(text).toBe("模板管理支持创建、编辑和发布模板。");
+    expect(summarize).toHaveBeenCalledWith({
+      question: "模板有什么功能？",
+      answer: rawAnswer,
+    });
+    await app.close();
+  });
+
+  it("strips forced-summary error prefixes from MCP ask answers", async () => {
+    const rawAnswer = "errors.reasonStuck\n\n完整功能清单正文";
+    const app = await createApp({
+      config: testConfig(),
+      buildLoop: async () => mockLoop([
+        {
+          turn: 1,
+          role: "assistant_final",
+          content: rawAnswer,
+        },
+        { turn: 1, role: "done", content: "" },
+      ]),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 22,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "功能清单",
+          },
+        },
+      },
+    });
+
+    const text = (res.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(text).toBe("完整功能清单正文");
     await app.close();
   });
 

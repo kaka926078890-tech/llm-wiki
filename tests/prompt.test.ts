@@ -47,4 +47,13 @@ describe("prompt", () => {
     expect(prompt).not.toMatch(/不要返回.*代码块/);
     process.env = originalEnv;
   });
+
+  it("prompt requires definitive final answers without follow-up invitations", () => {
+    process.env.DEEPSEEK_API_KEY = "test-key";
+    const prompt = buildSystemPrompt(loadConfig());
+    expect(prompt).toMatch(/Final answer — definitive, no hand-offs/i);
+    expect(prompt).toMatch(/Do NOT close with invitations to continue/i);
+    expect(prompt).toMatch(/Never suggest the caller should invoke you again/i);
+    process.env = originalEnv;
+  });
 });

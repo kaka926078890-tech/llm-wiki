@@ -2,7 +2,11 @@ import type { FastifyInstance } from "fastify";
 import type { IncomingHttpHeaders } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { LlmWikiConfig } from "../config.js";
-import type { LoopEvent } from "../core/loop/types.js";
+import { DeepSeekClient } from "../core/client.js";
+import {
+  LlmAnswerSummaryAgent,
+  type AnswerSummaryAgent,
+} from "../answer-summary-agent.js";
 import type { CacheFirstLoop } from "../loop-runner.js";
 import { buildLoop } from "../loop-runner.js";
 import type { BuildLoopFn } from "./ask.js";
@@ -44,26 +48,32 @@ interface AskToolArguments {
   repo_scope?: string;
 }
 
+export type BuildAnswerSummaryAgentFn = (cfg: LlmWikiConfig) => Promise<AnswerSummaryAgent>;
+
+export const ASK_TOOL_DESCRIPTION = [
+  "One-shot repository knowledge Q&A — not a code-search API, pagination endpoint, or multi-call retrieval tool.",
+  "Call once with the user's exact question; llm-wiki searches chatkit-middleware, chatkit-web, and finclaw internally and returns one complete answer.",
+  "After it returns, answer the user by presenting the tool result verbatim in this turn; do not rewrite, reformat, summarize, or shorten it.",
+  "Do not append follow-up invitations such as \"可以进一步问我\", \"如需深入\", or \"Would you like me to…\".",
+  "Do not call again for the same question, do not send continuation prompts such as \"接上一条\" or \"继续补充\", and do not re-call because the answer is long or context mentions truncation or prompt budget.",
+  "Do not ask the user clarifying questions that llm-wiki can resolve by searching the codebase.",
+].join(" ");
+
 const askToolDefinition = {
   name: ASK_TOOL_NAME,
-  description:
-    [
-      "Ask llm-wiki to inspect the authorized ChatKit/FinClaw repositories once and return a complete answer directly.",
-      "Use this tool for repository knowledge questions, then Answer the user from the received result.",
-      "Do not call this tool again for the same user question just because the result is long or the UI/model context mentions truncation, size limits, or prompt budget.",
-      "The tool has no pagination or continuation API; do not infer that more content is available unless the user explicitly asks a new, narrower follow-up question.",
-    ].join(" "),
+  description: ASK_TOOL_DESCRIPTION,
   inputSchema: {
     type: "object",
     properties: {
       question: {
         type: "string",
-        description: "Natural-language question about chatkit-middleware, chatkit-web, or finclaw.",
+        description:
+          "The user's question verbatim. Cross-repo questions are fine; do not rewrite, expand, split, or narrow it before calling.",
       },
       repo_scope: {
         type: "string",
         description:
-          "Optional scope hint, for example chatkit-middleware, chatkit-web, finclaw, or all.",
+          "Usually omit. Only set when the user already named a repo or alias (middleware=chatkit-middleware, web=chatkit-web, finclaw, or all).",
       },
     },
     required: ["question"],
@@ -120,8 +130,13 @@ function sseFrame(message: unknown): string {
   return `event: message\ndata: ${JSON.stringify(message)}\n\n`;
 }
 
+function stripForcedSummaryPrefix(answer: string): string {
+  return answer.replace(/^errors\.reason(?:Stuck|Aborted|ContextGuard)\n\n/, "");
+}
+
 async function runAskTool(
   loop: CacheFirstLoop,
+  summaryAgent: AnswerSummaryAgent,
   args: AskToolArguments,
 ): Promise<string> {
   const promptParts = [
@@ -142,15 +157,41 @@ async function runAskTool(
     }
   }
 
-  const answer = answerParts.join("").trim();
-  const sections = [answer || "(llm-wiki completed without a final answer)"];
-  return sections.join("\n").trim();
+  const rawAnswer =
+    stripForcedSummaryPrefix(answerParts.join("").trim()) ||
+    "(llm-wiki completed without a final answer)";
+  try {
+    const summarized = await summaryAgent.summarize({
+      question: args.question,
+      answer: rawAnswer,
+    });
+    return summarized.trim() || rawAnswer;
+  } catch (err) {
+    console.warn(
+      `[llm-wiki] answer summary agent failed; returning raw answer: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
+    return rawAnswer;
+  }
+}
+
+async function buildDefaultAnswerSummaryAgent(cfg: LlmWikiConfig): Promise<AnswerSummaryAgent> {
+  const client = new DeepSeekClient({
+    apiKey: cfg.deepseekApiKey,
+    baseUrl: cfg.deepseekBaseUrl,
+  });
+  return new LlmAnswerSummaryAgent({
+    client,
+    model: cfg.deepseekModel,
+  });
 }
 
 export async function registerMcpRoutes(
   app: FastifyInstance,
   cfg: LlmWikiConfig,
   buildLoopFn: BuildLoopFn = buildLoop,
+  buildAnswerSummaryAgentFn: BuildAnswerSummaryAgentFn = buildDefaultAnswerSummaryAgent,
 ): Promise<void> {
   const sessions = new Set<string>();
 
@@ -221,6 +262,7 @@ export async function registerMcpRoutes(
 
         const args = parseAskArgs(params.arguments);
         const loop = await buildLoopFn(cfg);
+        const summaryAgent = await buildAnswerSummaryAgentFn(cfg);
         if (acceptsEventStream(request.headers)) {
           reply.hijack();
           reply.raw.writeHead(200, {
@@ -229,7 +271,7 @@ export async function registerMcpRoutes(
             Connection: "keep-alive",
           });
           try {
-            const text = await runAskTool(loop, args);
+            const text = await runAskTool(loop, summaryAgent, args);
             if (!reply.raw.destroyed && !reply.raw.writableEnded) {
               reply.raw.write(
                 sseFrame(
@@ -258,7 +300,7 @@ export async function registerMcpRoutes(
           return;
         }
 
-        const text = await runAskTool(loop, args);
+        const text = await runAskTool(loop, summaryAgent, args);
         return reply.send(
           success(id, {
             content: [
