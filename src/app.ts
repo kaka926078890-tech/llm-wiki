@@ -4,15 +4,17 @@ import Fastify from "fastify";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import type { LlmWikiConfig } from "./config.js";
-import { identityAnswerSummaryAgent, type AnswerSummaryAgent } from "./answer-summary-agent.js";
-import type { BuildLoopFn } from "./routes/ask.js";
+import { identityAnswerSummaryAgent } from "./answer-summary-agent.js";
+import type { BuildLoopBundleFn } from "./routes/ask.js";
 import { registerAskRoutes } from "./routes/ask.js";
 import { registerHealthRoutes } from "./routes/health.js";
+import { registerIndexRoutes } from "./routes/index.js";
+import { registerRunsRoutes } from "./routes/runs.js";
 import { type BuildAnswerSummaryAgentFn, registerMcpRoutes } from "./routes/mcp.js";
 
 export interface CreateAppOptions {
   config: LlmWikiConfig;
-  buildLoop?: BuildLoopFn;
+  buildLoopBundle?: BuildLoopBundleFn;
   buildAnswerSummaryAgent?: BuildAnswerSummaryAgentFn;
 }
 
@@ -21,13 +23,18 @@ export async function createApp(opts: CreateAppOptions) {
   await app.register(cors, { origin: true });
 
   await registerHealthRoutes(app, opts.config);
-  await registerAskRoutes(app, opts.config, opts.buildLoop);
-  const buildAnswerSummaryAgent =
-    opts.buildAnswerSummaryAgent ??
-    (opts.buildLoop
-      ? async (): Promise<AnswerSummaryAgent> => identityAnswerSummaryAgent
-      : undefined);
-  await registerMcpRoutes(app, opts.config, opts.buildLoop, buildAnswerSummaryAgent);
+  await registerIndexRoutes(app, opts.config);
+  await registerRunsRoutes(app, opts.config);
+  await registerAskRoutes(app, opts.config, opts.buildLoopBundle);
+  await registerMcpRoutes(
+    app,
+    opts.config,
+    opts.buildLoopBundle,
+    opts.buildAnswerSummaryAgent
+      ?? (opts.buildLoopBundle
+        ? async () => identityAnswerSummaryAgent
+        : undefined),
+  );
 
   const staticRoot = path.join(opts.config.projectRoot, "frontend/dist");
   if (existsSync(staticRoot)) {

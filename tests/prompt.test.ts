@@ -25,17 +25,13 @@ describe("prompt", () => {
     expect(prompt).toMatch(/glob/i);
     expect(prompt).toMatch(/get_symbols/i);
     expect(prompt).toMatch(/find_in_code/i);
-    expect(prompt).toMatch(/semantic_search/i);
-    expect(prompt).toMatch(/codegraph_search/i);
+    expect(prompt).toMatch(/cbm_search/i);
     process.env = originalEnv;
   });
 
-  it("mentions codegraph and optional semantic_search strategy", () => {
+  it("mentions cbm_search retrieval strategy", () => {
     const prompt = codeSystemBase("deepseek-chat");
-    expect(prompt).toContain("`codegraph_search`");
-    expect(prompt).toContain("callers/callees");
-    expect(prompt).toContain("If `semantic_search` is available");
-    expect(prompt).toContain("descriptive questions");
+    expect(prompt).toContain("`cbm_search`");
     expect(prompt).toContain("For exact routes");
   });
 

@@ -12,7 +12,7 @@ function testConfig(): LlmWikiConfig {
     REPO_CHATKIT_MIDDLEWARE: getProjectRoot(),
     REPO_CHATKIT_WEB: getProjectRoot(),
     REPO_FINCLAW: getProjectRoot(),
-    LLM_WIKI_TEI_BASE_URL: "",
+    LLM_WIKI_CBM_ENABLED: "false",
   });
 }
 
@@ -23,10 +23,11 @@ describe("loop-smoke", () => {
     expect(typeof loop.step).toBe("function");
   });
 
-  it("P1-LOOP-04 buildLoop registers codegraph_search", async () => {
+  it("P1-LOOP-04 buildLoop registers readonly filesystem tools", async () => {
     const loop = await buildLoop(testConfig());
     const names = loop.prefix.toolSpecs.map((spec) => spec.function.name);
-    expect(names).toContain("codegraph_search");
+    expect(names).toContain("search_content");
+    expect(names).toContain("read_file");
   });
 
   it("P1-LOOP-02 mock LLM tool_call executes at least one tool", async () => {

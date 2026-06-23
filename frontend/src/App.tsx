@@ -5,7 +5,11 @@ import { callMcpAsk } from "./lib/mcp-client";
 import { createAssistantState, reduceLoopEvent } from "./lib/sse-reducer";
 import { streamAgentRun } from "./lib/sse-client";
 import { Composer } from "./ui/composer";
+import { IndexPanel } from "./ui/index-panel";
+import { RunsPanel } from "./ui/runs-panel";
 import { AssistantMsg, UserMsg } from "./ui/thread";
+
+type AppView = "chat" | "runs" | "index";
 
 let nextId = 0;
 function uid(): string {
@@ -18,6 +22,7 @@ export default function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [runMode, setRunMode] = useState<RunMode>("agent");
+  const [view, setView] = useState<AppView>("chat");
   const [repoScope, setRepoScope] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +173,30 @@ export default function App() {
           <div className="mode-tabs">
             <button
               type="button"
+              className={view === "chat" ? "is-active" : ""}
+              onClick={() => setView("chat")}
+            >
+              Chat
+            </button>
+            <button
+              type="button"
+              className={view === "runs" ? "is-active" : ""}
+              onClick={() => setView("runs")}
+            >
+              Runs
+            </button>
+            <button
+              type="button"
+              className={view === "index" ? "is-active" : ""}
+              onClick={() => setView("index")}
+            >
+              Index
+            </button>
+          </div>
+          {view === "chat" ? (
+          <div className="mode-tabs">
+            <button
+              type="button"
               className={runMode === "agent" ? "is-active" : ""}
               onClick={() => setRunMode("agent")}
             >
@@ -181,7 +210,8 @@ export default function App() {
               MCP Final
             </button>
           </div>
-          {runMode === "mcp" ? (
+          ) : null}
+          {view === "chat" && runMode === "mcp" ? (
             <select
               value={repoScope}
               onChange={(e) => setRepoScope(e.target.value)}
@@ -197,7 +227,13 @@ export default function App() {
         </div>
       </header>
 
-      <main className="app__thread" aria-label="Conversation">
+      <main className="app__thread" aria-label={view === "chat" ? "Conversation" : view === "runs" ? "Debug runs" : "Index status"}>
+        {view === "runs" ? (
+          <RunsPanel />
+        ) : view === "index" ? (
+          <IndexPanel />
+        ) : (
+        <>
         {messages.length === 0 ? (
           <p className="app__empty">
             {runMode === "mcp"
@@ -214,8 +250,11 @@ export default function App() {
         )}
         {error ? <p className="app__error">{error}</p> : null}
         <div ref={threadEndRef} />
+        </>
+        )}
       </main>
 
+      {view === "chat" ? (
       <Composer
         draft={draft}
         setDraft={setDraft}
@@ -225,6 +264,7 @@ export default function App() {
         busy={pending}
         textareaRef={textareaRef}
       />
+      ) : null}
     </div>
   );
 }

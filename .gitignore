@@ -3,10 +3,18 @@ dist/
 .env
 .DS_Store
 .reasonix/truncated-results/
+.reasonix/runs/
+.reasonix/security-audit.jsonl
+.reasonix/cbm-index-state.json
+.reasonix-test-runs/
+benchmarks/reports/
+code/.codegraph/
+.tei-hf-cache/
+.venv-tei/
+.tei-native.pid
+.tei-native.log
 
-# Cloned repos and CodeGraph indexes under code/ (local only)
+# Cloned repos under code/ (local only)
 code/chatkit-middleware/
 code/chatkit-web/
 code/finclaw/
-code/.codegraph/
-code/*/.codegraph/

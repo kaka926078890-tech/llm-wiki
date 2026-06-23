@@ -4,14 +4,15 @@ import { createApp } from "../src/app.js";
 import { getProjectRoot, loadConfig, type LlmWikiConfig } from "../src/config.js";
 import type { LoopEvent } from "../src/core/loop/types.js";
 import type { CacheFirstLoop } from "../src/loop-runner.js";
+import { bundleFromLoop, mockLoopBundle } from "./mock-loop-bundle.js";
 
-function testConfig(): LlmWikiConfig {
+function testConfig(overrides: Record<string, string> = {}): LlmWikiConfig {
   return loadConfig({
     DEEPSEEK_API_KEY: "test-key",
     REPO_CHATKIT_MIDDLEWARE: getProjectRoot(),
     REPO_CHATKIT_WEB: getProjectRoot(),
     REPO_FINCLAW: getProjectRoot(),
-    LLM_WIKI_TEI_BASE_URL: "",
+    ...overrides,
   });
 }
 
@@ -27,7 +28,7 @@ describe("routes-mcp", () => {
   it("initializes a streamable HTTP MCP session", async () => {
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop([]),
+      buildLoopBundle: async (_cfg, question) => mockLoopBundle([], question),
     });
 
     const res = await app.inject({
@@ -64,7 +65,7 @@ describe("routes-mcp", () => {
   it("lists only the ask_llm_wiki tool", async () => {
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop([]),
+      buildLoopBundle: async (_cfg, question) => mockLoopBundle([], question),
     });
 
     const res = await app.inject({
@@ -130,7 +131,7 @@ describe("routes-mcp", () => {
     ];
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop(events),
+      buildLoopBundle: async (_cfg, question) => mockLoopBundle(events, question),
     });
 
     const res = await app.inject({
@@ -175,14 +176,15 @@ describe("routes-mcp", () => {
     const summarize = vi.fn(async () => "模板管理支持创建、编辑和发布模板。");
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop([
-        {
-          turn: 1,
-          role: "assistant_final",
-          content: rawAnswer,
-        },
-        { turn: 1, role: "done", content: "" },
-      ]),
+      buildLoopBundle: async (_cfg, question) =>
+        mockLoopBundle([
+          {
+            turn: 1,
+            role: "assistant_final",
+            content: rawAnswer,
+          },
+          { turn: 1, role: "done", content: "" },
+        ], question),
       buildAnswerSummaryAgent: async () => ({ summarize }),
     });
 
@@ -216,14 +218,15 @@ describe("routes-mcp", () => {
     const rawAnswer = "errors.reasonStuck\n\n完整功能清单正文";
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop([
-        {
-          turn: 1,
-          role: "assistant_final",
-          content: rawAnswer,
-        },
-        { turn: 1, role: "done", content: "" },
-      ]),
+      buildLoopBundle: async (_cfg, question) =>
+        mockLoopBundle([
+          {
+            turn: 1,
+            role: "assistant_final",
+            content: rawAnswer,
+          },
+          { turn: 1, role: "done", content: "" },
+        ], question),
     });
 
     const res = await app.inject({
@@ -259,7 +262,7 @@ describe("routes-mcp", () => {
     });
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+      buildLoopBundle: async (_cfg, question) => bundleFromLoop({ abort: vi.fn(), step } as unknown as CacheFirstLoop, question),
     });
 
     await app.inject({
@@ -297,7 +300,7 @@ describe("routes-mcp", () => {
     ];
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop(events),
+      buildLoopBundle: async (_cfg, question) => mockLoopBundle(events, question),
     });
 
     const res = await app.inject({
@@ -339,7 +342,7 @@ describe("routes-mcp", () => {
     });
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+      buildLoopBundle: async (_cfg, question) => bundleFromLoop({ abort: vi.fn(), step } as unknown as CacheFirstLoop, question),
     });
 
     const read = await app.inject({
@@ -373,7 +376,7 @@ describe("routes-mcp", () => {
     await app.close();
   });
 
-  it("preserves original MCP answers in the direct ask_llm_wiki response", async () => {
+  it("keeps the MCP answer direct while minimizing code and file-location details", async () => {
     const step = vi.fn(async function* () {
       yield {
         turn: 1,
@@ -391,7 +394,7 @@ describe("routes-mcp", () => {
     });
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+      buildLoopBundle: async (_cfg, question) => bundleFromLoop({ abort: vi.fn(), step } as unknown as CacheFirstLoop, question),
     });
 
     const ask = await app.inject({
@@ -412,11 +415,148 @@ describe("routes-mcp", () => {
     const askText = (ask.json() as { result: { content: Array<{ text: string }> } }).result
       .content[0]!.text;
     expect(askText).toContain("用户可以在后台维护模板");
-    expect(askText).toContain("const secret");
-    expect(askText).toContain("App.tsx");
-    expect(askText).toContain("adminApi.ts");
+    expect(askText).toContain("源码示例已省略");
+    expect(askText).toContain("源码位置");
+    expect(askText).not.toContain("[INTERNAL_");
+    expect(askText).not.toContain("const secret");
+    expect(askText).not.toContain("../../chatkit-web/src/App.tsx:191");
+    expect(askText).not.toContain("src/services/adminApi.ts:1940");
     expect(askText).not.toContain("result_id:");
     expect(askText).not.toContain("read_llm_wiki_result");
+    await app.close();
+  });
+
+  it("redacts secret-like content in direct MCP ask answers", async () => {
+    const app = await createApp({
+      config: testConfig(),
+      buildLoopBundle: async (_cfg, question) =>
+        mockLoopBundle([
+          {
+            turn: 1,
+            role: "assistant_final",
+            content: "Use Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456",
+          },
+          { turn: 1, role: "done", content: "" },
+        ], question),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 31,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "token?",
+          },
+        },
+      },
+    });
+
+    const text = (res.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(text).toContain("[REDACTED_BEARER_TOKEN]");
+    expect(text).not.toContain("abcdefghijklmnopqrstuvwxyz123456");
+    await app.close();
+  });
+
+  it("summarizes internal implementation details into readable MCP categories", async () => {
+    const app = await createApp({
+      config: testConfig(),
+      buildLoopBundle: async (_cfg, question) =>
+        mockLoopBundle([
+          {
+            turn: 1,
+            role: "assistant_final",
+            content: [
+              "VITE_PROXY_AGENT_TARGET defaults to http://localhost:26100.",
+              "VITE_CHANNEL_LOGIN_PASSWORD configures channel test login.",
+              "localStorage key chatkit-sessions-v1- stores cached sessions.",
+              "Routes include /admin/users and /api/wecom/bind.",
+            ].join("\n"),
+          },
+          { turn: 1, role: "done", content: "" },
+        ], question),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 33,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "chatkit-web 都有哪些配置项？",
+          },
+        },
+      },
+    });
+
+    const text = (res.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(text).toContain("前端代理目标配置");
+    expect(text).toContain("本地开发服务连接");
+    expect(text).toContain("频道登录测试配置");
+    expect(text).toContain("浏览器本地缓存配置");
+    expect(text).toContain("管理后台接口");
+    expect(text).toContain("第三方集成接口");
+    expect(text).toContain("部分底层实现细节已按安全策略省略");
+    expect(text).not.toContain("[INTERNAL_");
+    expect(text).not.toContain("VITE_PROXY_AGENT_TARGET");
+    expect(text).not.toContain("VITE_CHANNEL_LOGIN_PASSWORD");
+    expect(text).not.toContain("http://localhost:26100");
+    expect(text).not.toContain("chatkit-sessions-v1-");
+    expect(text).not.toContain("/admin/users");
+    await app.close();
+  });
+
+  it("uses the internal MCP answer profile without public category minimization", async () => {
+    const app = await createApp({
+      config: {
+        ...testConfig(),
+        answerProfiles: {
+          agent: "debug",
+          mcp: "internal",
+        },
+      },
+      buildLoopBundle: async (_cfg, question) =>
+        mockLoopBundle([
+          {
+            turn: 1,
+            role: "assistant_final",
+            content: "VITE_PROXY_AGENT_TARGET defaults to http://localhost:26100.",
+          },
+          { turn: 1, role: "done", content: "" },
+        ], question),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: 34,
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: {
+            question: "内部配置？",
+          },
+        },
+      },
+    });
+
+    const text = (res.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(text).toContain("VITE_PROXY_AGENT_TARGET");
+    expect(text).toContain("http://localhost:26100");
+    expect(text).not.toContain("前端代理目标配置");
     await app.close();
   });
 
@@ -432,7 +572,7 @@ describe("routes-mcp", () => {
     });
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+      buildLoopBundle: async (_cfg, question) => bundleFromLoop({ abort: vi.fn(), step } as unknown as CacheFirstLoop, question),
     });
 
     const ask = await app.inject({
@@ -472,7 +612,7 @@ describe("routes-mcp", () => {
     });
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => ({ abort: vi.fn(), step }) as unknown as CacheFirstLoop,
+      buildLoopBundle: async (_cfg, question) => bundleFromLoop({ abort: vi.fn(), step } as unknown as CacheFirstLoop, question),
     });
 
     const ask = await app.inject({
@@ -516,7 +656,7 @@ describe("routes-mcp", () => {
     ];
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop(events),
+      buildLoopBundle: async (_cfg, question) => mockLoopBundle(events, question),
     });
 
     const res = await app.inject({

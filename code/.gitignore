@@ -1,8 +1,7 @@
 # Keep cloned repos out of llm-wiki git. Do NOT use a blanket `*` here —
-# CodeGraph reads .gitignore when scanning and would index zero files under code/.
+# some tools read .gitignore when scanning under code/.
 /chatkit-middleware/
 /chatkit-web/
 /finclaw/
-/.codegraph/
 !.gitignore
 !.gitkeep

@@ -5,6 +5,7 @@ import { createApp } from "../src/app.js";
 import { getProjectRoot, loadConfig, type LlmWikiConfig } from "../src/config.js";
 import type { LoopEvent } from "../src/core/loop/types.js";
 import type { CacheFirstLoop } from "../src/loop-runner.js";
+import { bundleFromLoop, mockLoopBundle } from "./mock-loop-bundle.js";
 
 function testConfig(): LlmWikiConfig {
   return loadConfig({
@@ -12,7 +13,6 @@ function testConfig(): LlmWikiConfig {
     REPO_CHATKIT_MIDDLEWARE: getProjectRoot(),
     REPO_CHATKIT_WEB: getProjectRoot(),
     REPO_FINCLAW: getProjectRoot(),
-    LLM_WIKI_TEI_BASE_URL: "",
   });
 }
 
@@ -44,7 +44,7 @@ describe("routes-ask", () => {
   it("P2-ASK-01 empty body returns 400", async () => {
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop([]),
+      buildLoopBundle: async (_cfg, question) => mockLoopBundle([], question),
     });
     const res = await app.inject({
       method: "POST",
@@ -68,7 +68,7 @@ describe("routes-ask", () => {
     ];
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => mockLoop(events),
+      buildLoopBundle: async (_cfg, question) => mockLoopBundle(events, question),
     });
 
     const res = await app.inject({
@@ -112,7 +112,7 @@ describe("routes-ask", () => {
 
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => loop,
+      buildLoopBundle: async (_cfg, question) => bundleFromLoop(loop, question),
     });
 
     await app.listen({ port: 0, host: "127.0.0.1" });
@@ -177,7 +177,7 @@ describe("routes-ask", () => {
 
     const app = await createApp({
       config: testConfig(),
-      buildLoop: async () => loop,
+      buildLoopBundle: async (_cfg, question) => bundleFromLoop(loop, question),
     });
 
     await app.listen({ port: 0, host: "127.0.0.1" });

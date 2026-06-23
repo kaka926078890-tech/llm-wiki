@@ -9,7 +9,8 @@ export type EventRole =
   | "error"
   | "warning"
   | "status"
-  | "steer";
+  | "steer"
+  | "evidence";
 
 export interface LoopEvent {
   turn: number;

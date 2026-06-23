@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "defaults": {
+    "runs": 3,
+    "minCoreIntersectionRatio": 0.8,
+    "maxCoreMissPerRun": 2
+  },
+  "questions": [
+    {
+      "id": "web-config-inventory",
+      "category": "config",
+      "quick": true,
+      "repo_scope": "chatkit-web",
+      "question": "chatkit-web 都有哪些配置项？",
+      "core": [
+        { "id": "monorepo", "patterns": ["monorepo", "工作区", "workspace", "子项目", "chatkit-admin", "chatkit-mobile", "finclaw-frontend"] },
+        { "id": "build_tooling", "patterns": ["vite", "构建", "typescript", "tsconfig", "tailwind"] },
+        { "id": "runtime_config", "patterns": ["环境变量", "运行时配置", "前端运行时", "VITE", "代理目标", "开发服务"] },
+        { "id": "dev_proxy", "patterns": ["代理", "proxy", "开发环境", "后端"] },
+        { "id": "i18n", "patterns": ["国际化", "i18n", "语言", "locale", "zh", "en"] },
+        { "id": "rbac", "patterns": ["权限", "rbac", "角色"] },
+        { "id": "im_channels", "patterns": ["飞书", "钉钉", "企微", "wecom", "feishu", "dingtalk", "频道", "IM"] },
+        { "id": "session_cache", "patterns": ["会话", "缓存", "localStorage", "session"] }
+      ]
+    },
+    {
+      "id": "web-im-channels",
+      "category": "listing",
+      "quick": true,
+      "repo_scope": "chatkit-web",
+      "question": "chatkit-web 支持哪些 IM 频道集成？",
+      "core": [
+        { "id": "feishu", "patterns": ["飞书", "feishu"] },
+        { "id": "dingtalk", "patterns": ["钉钉", "dingtalk"] },
+        { "id": "wecom", "patterns": ["企微", "wecom", "企业微信"] }
+      ],
+      "polarity": [
+        {
+          "id": "channels_available",
+          "positive": ["飞书", "钉钉", "企微", "wecom", "feishu", "dingtalk", "支持", "available"],
+          "negative": ["不支持.{0,6}(飞书|钉钉|企微)", "没有.{0,6}(频道|集成)", "未发现.{0,6}(飞书|钉钉|企微)"]
+        }
+      ]
+    },
+    {
+      "id": "web-rbac",
+      "category": "architecture",
+      "repo_scope": "chatkit-web",
+      "question": "chatkit-web 的权限和 RBAC 是如何组织的？",
+      "core": [
+        { "id": "rbac_module", "patterns": ["rbac", "权限", "角色"] },
+        { "id": "admin_vs_app", "patterns": ["admin", "管理", "前台", "应用", "mobile", "finclaw"] },
+        { "id": "capability_gates", "patterns": ["技能", "模板", "agent", "安装", "发布", "浏览"] }
+      ]
+    },
+    {
+      "id": "middleware-services",
+      "category": "listing",
+      "quick": true,
+      "repo_scope": "chatkit-middleware",
+      "question": "chatkit-middleware 有哪些主要服务或模块？",
+      "core": [
+        { "id": "gateway_or_api", "patterns": ["gateway", "网关", "api"] },
+        { "id": "identity", "patterns": ["identity", "认证", "身份", "auth"] },
+        { "id": "agent_runtime", "patterns": ["agent", "智能体", "agui", "ag-ui"] },
+        { "id": "persona_or_skill", "patterns": ["persona", "skill", "技能", "人设"] },
+        { "id": "document", "patterns": ["document", "文档", "doc"] }
+      ]
+    },
+    {
+      "id": "middleware-auth",
+      "category": "architecture",
+      "repo_scope": "chatkit-middleware",
+      "question": "chatkit-middleware 的认证和身份相关能力有哪些？",
+      "core": [
+        { "id": "identity_service", "patterns": ["identity", "身份", "认证"] },
+        { "id": "session_or_token", "patterns": ["session", "token", "cookie", "登录", "jwt", "会话"] },
+        { "id": "user_context", "patterns": ["用户", "user", "租户", "tenant"] }
+      ]
+    },
+    {
+      "id": "middleware-config",
+      "category": "config",
+      "repo_scope": "chatkit-middleware",
+      "question": "chatkit-middleware 有哪些配置文件和环境配置？",
+      "core": [
+        { "id": "yaml_config", "patterns": ["yaml", "yml", "配置"] },
+        { "id": "ai_infra", "patterns": ["ai-infra", "ai infra", "基础设施"] },
+        { "id": "service_endpoints", "patterns": ["服务", "端口", "endpoint", "连接", "地址"] },
+        { "id": "env_secrets", "patterns": ["环境变量", "env", "密钥", "secret", "敏感"] }
+      ]
+    },
+    {
+      "id": "finclaw-features",
+      "category": "listing",
+      "repo_scope": "finclaw",
+      "question": "finclaw 有哪些核心功能和模块？",
+      "core": [
+        { "id": "agent_chat", "patterns": ["agent", "对话", "聊天", "claw"] },
+        { "id": "skills", "patterns": ["skill", "技能"] },
+        { "id": "document", "patterns": ["文档", "document", "doc"] },
+        { "id": "channel_or_delivery", "patterns": ["频道", "channel", "投递", "delivery", "inbox"] },
+        { "id": "frontend", "patterns": ["前端", "frontend", "界面", "ui"] }
+      ]
+    },
+    {
+      "id": "finclaw-agent-runtime",
+      "category": "architecture",
+      "repo_scope": "finclaw",
+      "question": "finclaw 的 agent 是如何启动和运行的？",
+      "core": [
+        { "id": "agent_loop", "patterns": ["agent", "loop", "运行", "调度"] },
+        { "id": "middleware_link", "patterns": ["middleware", "中间件", "gateway", "后端"] },
+        { "id": "agui_or_protocol", "patterns": ["agui", "ag-ui", "协议", "事件", "stream"] }
+      ]
+    },
+    {
+      "id": "finclaw-doc",
+      "category": "listing",
+      "repo_scope": "finclaw",
+      "question": "finclaw 的文档相关功能有哪些？",
+      "core": [
+        { "id": "doc_toolkit", "patterns": ["doc-toolkit", "文档工具", "doc toolkit"] },
+        { "id": "document_service", "patterns": ["document", "文档服务", "document-svc"] },
+        { "id": "user_facing", "patterns": ["上传", "管理", "阅读", "检索", "知识"] }
+      ]
+    },
+    {
+      "id": "cross-repo-relationship",
+      "category": "architecture",
+      "question": "chatkit-web、chatkit-middleware 和 finclaw 三个项目之间是什么关系？",
+      "core": [
+        { "id": "web_frontend", "patterns": ["chatkit-web", "前端", "web", "界面"] },
+        { "id": "middleware_backend", "patterns": ["middleware", "中间件", "后端", "服务"] },
+        { "id": "finclaw_product", "patterns": ["finclaw", "产品", "应用", "claw"] },
+        { "id": "integration", "patterns": ["集成", "调用", "连接", "依赖", "共享", "contracts"] }
+      ]
+    },
+    {
+      "id": "web-dev-proxy",
+      "category": "config",
+      "repo_scope": "chatkit-web",
+      "question": "chatkit-web 开发环境下如何代理后端服务？",
+      "core": [
+        { "id": "vite_proxy", "patterns": ["vite", "代理", "proxy", "开发"] },
+        { "id": "agent_upstream", "patterns": ["agent", "智能体", "agui"] },
+        { "id": "identity_upstream", "patterns": ["identity", "认证", "auth"] },
+        { "id": "api_or_mcp", "patterns": ["api", "mcp", "网关"] }
+      ]
+    },
+    {
+      "id": "middleware-health",
+      "category": "symbol",
+      "repo_scope": "chatkit-middleware",
+      "question": "chatkit-middleware 的健康检查机制是怎样的？",
+      "core": [
+        { "id": "health_endpoint", "patterns": ["health", "健康", "探活", "存活"] },
+        { "id": "service_level", "patterns": ["服务", "依赖", "状态"] },
+        { "id": "monitoring_use", "patterns": ["检查", "监控", "就绪", "ready"] }
+      ]
+    },
+    {
+      "id": "finclaw-ai-infra",
+      "category": "architecture",
+      "repo_scope": "finclaw",
+      "question": "finclaw 与 AI 基础设施是如何集成的？",
+      "core": [
+        { "id": "ai_infra", "patterns": ["ai-infra", "ai infra", "基础设施", "cron"] },
+        { "id": "model_or_llm", "patterns": ["模型", "llm", "推理", "大模型"] },
+        { "id": "gateway_path", "patterns": ["gateway", "网关", "代理", "中间件"] }
+      ]
+    },
+    {
+      "id": "web-i18n",
+      "category": "config",
+      "repo_scope": "chatkit-web",
+      "question": "chatkit-web 的国际化（i18n）支持情况如何？",
+      "core": [
+        { "id": "languages", "patterns": ["中文", "英文", "zh", "en", "语言"] },
+        { "id": "i18n_libs", "patterns": ["i18n", "国际化", "locale", "翻译"] },
+        { "id": "app_coverage", "patterns": ["admin", "mobile", "finclaw", "应用", "子项目"] }
+      ]
+    },
+    {
+      "id": "middleware-mcp",
+      "category": "architecture",
+      "repo_scope": "chatkit-middleware",
+      "question": "chatkit-middleware 中 MCP 相关能力有哪些？",
+      "core": [
+        { "id": "mcp_server", "patterns": ["mcp", "model context protocol"] },
+        { "id": "tools_or_resources", "patterns": ["工具", "tool", "资源", "resource"] },
+        { "id": "client_integration", "patterns": ["客户端", "集成", "调用", "连接"] }
+      ]
+    }
+  ]
+}

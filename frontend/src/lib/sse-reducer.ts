@@ -115,6 +115,25 @@ export function reduceLoopEvent(
         pending: true,
       };
     }
+    case "evidence": {
+      try {
+        const data = JSON.parse(ev.content) as {
+          evidenceCount?: number;
+          citationOrphans?: number;
+          runId?: string;
+        };
+        const summary =
+          `Evidence bundle: ${data.evidenceCount ?? 0} item(s), `
+          + `${data.citationOrphans ?? 0} orphan citation(s)`
+          + (data.runId ? ` · run ${data.runId}` : "");
+        return {
+          segments: appendSegment(state.segments, "text", `\n\n---\n${summary}`),
+          pending: state.pending,
+        };
+      } catch {
+        return state;
+      }
+    }
     case "error":
       return {
         segments: appendSegment(state.segments, "text", ev.error ?? ev.content ?? "Error"),

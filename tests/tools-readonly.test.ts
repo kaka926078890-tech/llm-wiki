@@ -112,6 +112,27 @@ describe("tools-readonly", () => {
     expect(grep).toContain("src/Widget.ts:2:");
   });
 
+  it("resolves repo label paths to the matching authorized root", async () => {
+    const fixtureRoots = await makeFixtureRoots();
+    const registry = new ToolRegistry();
+    registerMultiRootReadonlyTools(registry, { roots: fixtureRoots });
+
+    const tree = await registry.dispatch("directory_tree", {
+      path: "chatkit-web",
+      max_depth: 2,
+    });
+    expect(tree).toContain("[chatkit-web]");
+    expect(tree).toContain("src/Widget.ts");
+    expect(tree).not.toContain("[chatkit-middleware]");
+
+    const nested = await registry.dispatch("read_file", {
+      path: "chatkit-web/src/Widget.ts",
+    });
+    expect(nested).toContain("[chatkit-web]");
+    expect(nested).toContain("[src/Widget.ts]");
+    expect(nested).toContain("renderWidget");
+  });
+
   it("P1-TOOL-04 file info and AST code-query tools work on authorized files", async () => {
     const fixtureRoots = await makeFixtureRoots();
     const registry = new ToolRegistry();

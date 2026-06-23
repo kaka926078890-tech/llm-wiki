@@ -16,7 +16,9 @@ export type EventRole =
   /** Transient indicator for silent phases; UI clears on next primary event. */
   | "status"
   /** Mid-turn steer injected as queued user guidance without aborting the current turn. */
-  | "steer";
+  | "steer"
+  /** Structured evidence bundle emitted after agent run completes. */
+  | "evidence";
 
 /** "low" = chatty / self-correcting / counter — Desktop+Dashboard filter these out by default.
  *  Undefined / "high" = real event the user should see (compaction, abort, budget, rate-limit, etc.).

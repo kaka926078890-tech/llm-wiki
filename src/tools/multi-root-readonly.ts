@@ -5,6 +5,11 @@ import picomatch from "picomatch";
 import { grammarForPath } from "../core/code-query/grammar-map.js";
 import type { CodeMatchKind, FindInCodeOptions } from "../core/code-query/find-in-code.js";
 import { DEFAULT_INDEX_EXCLUDES } from "../core/index-excludes.js";
+import {
+  guardToolResult,
+  maybeRecordSecurityAudit,
+  type SecurityAuditLogger,
+} from "../core/security/index.js";
 import type { ToolRegistry } from "../core/tools.js";
 import { globFiles } from "../core/tools/fs/glob.js";
 import { searchContent, searchFiles } from "../core/tools/fs/search.js";
@@ -40,6 +45,7 @@ const MAX_LIST_BYTES = 256 * 1024;
 
 export interface MultiRootReadonlyOptions {
   roots: AuthorizedRoots;
+  securityAudit?: SecurityAuditLogger;
 }
 
 function rootEntries(roots: AuthorizedRoots): Array<{ label: string; path: string }> {
@@ -50,6 +56,33 @@ function rootEntries(roots: AuthorizedRoots): Array<{ label: string; path: strin
   ];
 }
 
+function repoLabelAliases(label: string): string[] {
+  if (label === "chatkit-middleware") return [label, "middleware"];
+  if (label === "chatkit-web") return [label, "web"];
+  return [label];
+}
+
+function resolveRepoLabelPath(
+  raw: string | undefined,
+  roots: AuthorizedRoots,
+): { label: string; rootPath: string; abs: string } | null {
+  if (!raw || path.isAbsolute(raw)) return null;
+  const normalized = raw.replaceAll("\\", "/").replace(/^\.\/+/, "");
+  for (const root of rootEntries(roots)) {
+    for (const alias of repoLabelAliases(root.label)) {
+      if (normalized === alias || normalized.startsWith(`${alias}/`)) {
+        const rel = normalized === alias ? "." : normalized.slice(alias.length + 1);
+        const abs = path.resolve(root.path, rel);
+        if (!pathIsUnder(abs, root.path)) {
+          throw new Error(`path escapes authorized roots: ${raw}`);
+        }
+        return { label: root.label, rootPath: root.path, abs };
+      }
+    }
+  }
+  return null;
+}
+
 function resolveSearchStart(
   raw: string | undefined,
   roots: AuthorizedRoots,
@@ -57,6 +90,8 @@ function resolveSearchStart(
   if (!raw || raw === "." || raw === "") {
     return rootEntries(roots).map((r) => ({ label: r.label, startAbs: r.path }));
   }
+  const labelPath = resolveRepoLabelPath(raw, roots);
+  if (labelPath) return [{ label: labelPath.label, startAbs: labelPath.abs }];
   const abs = resolveAuthorizedPath(raw, roots);
   const hit = rootEntries(roots).find((r) => pathIsUnder(abs, r.path));
   if (!hit) throw new Error(`path escapes authorized roots: ${raw}`);
@@ -67,15 +102,37 @@ function prefixResult(label: string, body: string): string {
   return `[${label}]\n${body}`;
 }
 
+function guardPrefixedResult(
+  label: string,
+  body: string,
+  opts: { toolName: string; path?: string; audit?: SecurityAuditLogger },
+): string {
+  const guarded = guardToolResult({
+    toolName: opts.toolName,
+    path: opts.path,
+    result: body,
+  });
+  maybeRecordSecurityAudit(opts.audit, {
+    surface: "tool",
+    toolName: opts.toolName,
+    path: opts.path,
+    ...guarded.audit,
+  });
+  return prefixResult(label, guarded.text);
+}
+
 function resolveSinglePath(
   raw: string,
   roots: AuthorizedRoots,
 ): { label: string; rootPath: string; abs: string; rel: string } {
-  const abs = resolveAuthorizedPath(raw, roots);
+  const labelPath = resolveRepoLabelPath(raw, roots);
+  const abs = labelPath?.abs ?? resolveAuthorizedPath(raw, roots);
   if (!isAuthorized(abs, roots)) {
     throw new Error(`path escapes authorized roots: ${raw}`);
   }
-  const root = rootEntries(roots).find((r) => pathIsUnder(abs, r.path));
+  const root = labelPath
+    ? { label: labelPath.label, path: labelPath.rootPath }
+    : rootEntries(roots).find((r) => pathIsUnder(abs, r.path));
   if (!root) throw new Error(`path escapes authorized roots: ${raw}`);
   return { label: root.label, rootPath: root.path, abs, rel: displayRel(root.path, abs) };
 }
@@ -317,7 +374,11 @@ export function registerMultiRootReadonlyTools(
             include_deps: args.include_deps,
           },
         );
-        parts.push(prefixResult(label, body));
+        parts.push(guardPrefixedResult(label, body, {
+          toolName: "search_content",
+          path: args.path,
+          audit: opts.securityAudit,
+        }));
       }
       return parts.join("\n\n");
     },
@@ -341,13 +402,8 @@ export function registerMultiRootReadonlyTools(
       required: ["path"],
     },
     fn: async (args: { path: string; head?: number; tail?: number; range?: string }) => {
-      const abs = resolveAuthorizedPath(args.path, roots);
-      if (!isAuthorized(abs, roots)) {
-        throw new Error(`path escapes authorized roots: ${args.path}`);
-      }
-      const root = rootEntries(roots).find((r) => pathIsUnder(abs, r.path))!;
-      const rel = displayRel(root.path, abs);
-      const raw = await fs.readFile(abs);
+      const target = resolveSinglePath(args.path, roots);
+      const raw = await fs.readFile(target.abs);
       const text = raw.toString("utf8");
       let lines = text.split(/\r?\n/);
       if (lines.length > 0 && lines[lines.length - 1] === "") lines = lines.slice(0, -1);
@@ -358,23 +414,33 @@ export function registerMultiRootReadonlyTools(
         const start = Math.max(1, rawStart ?? 1);
         const end = Math.min(totalLines, Math.max(start, rawEnd ?? totalLines));
         const slice = lines.slice(start - 1, end);
-        return prefixResult(
-          root.label,
-          `[${rel} range ${start}-${end}]\n${slice.join("\n")}`,
+        return guardPrefixedResult(
+          target.label,
+          `[${target.rel} range ${start}-${end}]\n${slice.join("\n")}`,
+          { toolName: "read_file", path: target.rel, audit: opts.securityAudit },
         );
       }
       if (typeof args.head === "number" && args.head > 0) {
         const count = Math.min(args.head, totalLines);
-        return prefixResult(root.label, `[${rel} head ${count}]\n${lines.slice(0, count).join("\n")}`);
+        return guardPrefixedResult(
+          target.label,
+          `[${target.rel} head ${count}]\n${lines.slice(0, count).join("\n")}`,
+          { toolName: "read_file", path: target.rel, audit: opts.securityAudit },
+        );
       }
       if (typeof args.tail === "number" && args.tail > 0) {
         const count = Math.min(args.tail, totalLines);
-        return prefixResult(
-          root.label,
-          `[${rel} tail ${count}]\n${lines.slice(totalLines - count).join("\n")}`,
+        return guardPrefixedResult(
+          target.label,
+          `[${target.rel} tail ${count}]\n${lines.slice(totalLines - count).join("\n")}`,
+          { toolName: "read_file", path: target.rel, audit: opts.securityAudit },
         );
       }
-      return prefixResult(root.label, `[${rel}]\n${lines.join("\n")}`);
+      return guardPrefixedResult(
+        target.label,
+        `[${target.rel}]\n${lines.join("\n")}`,
+        { toolName: "read_file", path: target.rel, audit: opts.securityAudit },
+      );
     },
   });
 

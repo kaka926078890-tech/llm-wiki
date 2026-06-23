@@ -1,7 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import type { LlmWikiConfig } from "../config.js";
-import type { CacheFirstLoop } from "../loop-runner.js";
-import { buildLoop } from "../loop-runner.js";
+import type { LoopBundle } from "../loop-runner.js";
+import { buildLoopBundle } from "../loop-runner.js";
+import { postProcessRunAnswer, buildAskPrompt } from "../finalize-run.js";
+import { formatEvidenceFooter } from "../core/evidence/index.js";
 import { mapLoopEventToSse } from "../sse/map-loop-event.js";
 
 export interface ChatMessage {
@@ -13,7 +15,7 @@ export interface AgentRunBody {
   messages: ChatMessage[];
 }
 
-export type BuildLoopFn = (cfg: LlmWikiConfig) => Promise<CacheFirstLoop>;
+export type BuildLoopBundleFn = (cfg: LlmWikiConfig, question: string) => Promise<LoopBundle>;
 
 function parseAgentRunBody(body: unknown): AgentRunBody | null {
   if (!body || typeof body !== "object") return null;
@@ -41,7 +43,7 @@ function lastUserMessage(messages: ChatMessage[]): string | null {
 export async function registerAskRoutes(
   app: FastifyInstance,
   cfg: LlmWikiConfig,
-  buildLoopFn: BuildLoopFn = buildLoop,
+  buildLoopBundleFn: BuildLoopBundleFn = buildLoopBundle,
 ): Promise<void> {
   app.post("/agent/run", async (request, reply) => {
     const parsed = parseAgentRunBody(request.body);
@@ -49,12 +51,13 @@ export async function registerAskRoutes(
       return reply.code(400).send({ error: "Invalid request body" });
     }
 
-    const question = lastUserMessage(parsed.messages);
-    if (!question) {
+    const rawQuestion = lastUserMessage(parsed.messages);
+    if (!rawQuestion) {
       return reply.code(400).send({ error: "No user message in messages" });
     }
 
-    const loop = await buildLoopFn(cfg);
+    const { loop, evidence, telemetry } = await buildLoopBundleFn(cfg, rawQuestion);
+    const prompt = buildAskPrompt(rawQuestion);
 
     reply.hijack();
     reply.raw.writeHead(200, {
@@ -83,18 +86,58 @@ export async function registerAskRoutes(
         ? bindDisconnect(request.raw.socket, "close")
         : () => {};
 
+    const answerParts: string[] = [];
+
     try {
-      for await (const ev of loop.step(question)) {
+      for await (const ev of loop.step(prompt)) {
         if (aborted || request.raw.aborted) break;
         if (reply.raw.destroyed || reply.raw.writableEnded) {
           abortFromClient();
           break;
+        }
+        if (ev.role === "assistant_delta" || ev.role === "assistant_final") {
+          if (ev.content) answerParts.push(ev.content);
         }
         reply.raw.write(mapLoopEventToSse(ev));
         if (request.raw.aborted) {
           abortFromClient();
           break;
         }
+      }
+
+      if (!aborted && !reply.raw.destroyed && !reply.raw.writableEnded) {
+        const processed = await postProcessRunAnswer({
+          rawAnswer: answerParts.join(""),
+          evidence,
+          telemetry,
+          cfg,
+          question: rawQuestion,
+          surface: "agent",
+        });
+        reply.raw.write(
+          mapLoopEventToSse({
+            turn: 0,
+            role: "evidence",
+            content: JSON.stringify({
+              runId: processed.telemetry.runId,
+              evidenceCount: processed.evidenceBundle.items.length,
+              citationOrphans: processed.citationReport.orphans.length,
+              negativeSearches: processed.evidenceBundle.negativeSearches.length,
+              items: processed.evidenceBundle.items,
+              orphans: processed.citationReport.orphans,
+            }),
+          }),
+        );
+        if (cfg.answerProfiles.agent === "debug") {
+          reply.raw.write(
+            mapLoopEventToSse({
+              turn: 0,
+              role: "assistant_final",
+              content: `\n\n${formatEvidenceFooter(processed.evidenceBundle, processed.citationReport)}`,
+            }),
+          );
+        }
+        reply.raw.write(mapLoopEventToSse({ turn: 0, role: "done", content: "" }));
       }
     } catch (err) {
       if (!aborted && !reply.raw.writableEnded) {

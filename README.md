@@ -35,6 +35,10 @@ REPO_FINCLAW=code/finclaw
 
 LLM_WIKI_PORT=3001
 LLM_WIKI_HOST=127.0.0.1
+
+# Answer profiles: debug | internal | public
+LLM_WIKI_AGENT_ANSWER_PROFILE=debug
+LLM_WIKI_MCP_ANSWER_PROFILE=public
 ```
 
 路径均相对于 `llm-wiki/` 项目根解析为绝对路径；工具只能访问三个 repo 根目录内的文件。
@@ -65,12 +69,17 @@ cd frontend && npm install && cd ..
 | 命令 | 说明 |
 |------|------|
 | `npm run dev` | 同时启动后端（Fastify + SSE）与前端 Vite dev server |
+| `npm run dev:debug` | 同时启动前后端，并在后端终端打印 MCP、tool、security 调试日志 |
+| `npm run dev:mcp-debug` | 同时启动前后端，只打印 MCP 请求调试日志 |
+| `npm run dev:server:debug` | 只启动后端，并打印 MCP、tool、security 调试日志 |
 | `npm run sync:code` | clone/pull `code/` 下的三个并行代码仓库 |
-| `npm run index` | （可选）在 TEI 可用时为 `code/` 下三个 repo 构建语义索引；**更换 embedding 模型后必须重新执行** |
-| `npm run codegraph:init` | （可选）在 `code/` 下初始化 CodeGraph 符号索引（首次启用） |
-| `npm run codegraph:sync` | （可选）增量同步 `code/` 的 CodeGraph 索引 |
-| `npm run codegraph:status` | 查看 `code/` 的 CodeGraph 索引状态 |
-| `npm test` | 后端 vitest（根目录 `tests/`） |
+| `npm run sync:code:full` | `sync:code` + `cbm:sync`（拉代码后自动重索引） |
+| `npm run cbm:setup` | `sync:code` + `cbm:init` 一键启用 codebase-memory-mcp 索引 |
+| `npm run cbm:init` | 为三个 repo 建立 CBM 知识图谱索引（首次） |
+| `npm run cbm:sync` | 代码变更后重新索引三个 repo |
+| `npm run cbm:status` | 查看 CBM 已索引项目列表 |
+| `npm run verify:upgrade` | Golden 题集升级验证（需 `DEEPSEEK_API_KEY`）；`--quick` 冒烟 3 题 |
+| `npm test` | 后端 vitest（根目录 `tests/`，98 条用例） |
 | `npm run build` | 构建前端 `frontend/dist` 并编译后端 TypeScript |
 
 前端单独测试与构建：
@@ -81,85 +90,138 @@ cd frontend && npm test && npm run build
 
 开发时访问 `http://127.0.0.1:3001`（后端托管前端静态资源）。
 
-## Optional semantic search
+## Answer profiles
 
-语义搜索是**可选功能**。默认 `npm run dev` 无需 TEI/BGE 即可运行，Agent 使用 lexical 工具（`search_content`、`glob` 等）检索代码。
+`llm-wiki` 将不同出口的回答粒度显式建模为 answer profile：
 
-启用条件：
+| Profile | 适用场景 | 行为 |
+|---------|----------|------|
+| `debug` | 本地开发、Agent Stream 调试 | 保留原始回答，便于定位检索与推理问题 |
+| `internal` | 内部研发使用 | 保留实现细节，但仍通过 secret redaction 兜底 |
+| `public` | MCP 默认、用户向问答 | 将端口、内部 URL、env var、route、源码路径、代码块归纳为可读类别摘要 |
 
-1. 可访问的 TEI 兼容 HTTP embeddings 服务（`LLM_WIKI_TEI_BASE_URL`）
-2. 已为各 repo 构建本地语义索引
+默认值：
 
-推荐流程：
+| 出口 | 环境变量 | 默认 profile |
+|------|----------|--------------|
+| Agent Stream (`/agent/run`) | `LLM_WIKI_AGENT_ANSWER_PROFILE` | `debug` |
+| MCP (`/mcp`) | `LLM_WIKI_MCP_ANSWER_PROFILE` | `public` |
+
+临时切换 MCP 为内部研发模式：
 
 ```bash
-npm run sync:code
-# 在 .env 中配置 LLM_WIKI_TEI_* 变量（见 .env.example）
-npm run index
+LLM_WIKI_MCP_ANSWER_PROFILE=internal npm run dev:server
+```
+
+## codebase-memory-mcp (CBM)
+
+结构检索与语义检索统一走 [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp)：单二进制、内嵌 tree-sitter 知识图谱与 on-device embedding。
+
+**安装 CBM（一次性）：**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh | bash
+```
+
+**启用索引 + 开发：**
+
+```bash
+cp .env.example .env
+npm run cbm:setup
 npm run dev:server
 ```
 
-相关环境变量见 `.env.example`。`LLM_WIKI_SEMANTIC_ENABLED=auto`（默认）时，仅当 TEI 探测成功且至少存在一个有效索引时，loop 内才会注册 `semantic_search` 工具。`LLM_WIKI_SEMANTIC_ENABLED=true` 但不可用时，启动时会打印警告并继续以 lexical 模式运行。
+`cbm_search` 在 loop 内注册（`LLM_WIKI_CBM_ENABLED=auto` 默认）：
 
-索引文件位于各 clone 仓库内：`code/<repo>/.reasonix/semantic/index.json`。它们属于本地 artifact（`code/` 已被 llm-wiki git 忽略），不会提交到 llm-wiki 仓库。
+| operation | 用途 |
+|-----------|------|
+| `semantic` | 宽泛语义 / 功能 / 架构问题 |
+| `query` / `trace` | 符号、调用链 |
+| `architecture` | 仓库架构总览 |
+| `impact` | git diff 影响面 |
 
-索引构建使用 `src/core/index/config.ts` 的共享过滤规则（排除目录/文件/扩展名、文件大小上限），并尊重各 repo 根目录的 `.gitignore`。
+**健康检查：** `GET /health` 返回 `cbm.binaryReady`、`cbm.cbmSearchReady`、`cbm.projects[]`。
 
-### Embedding model and re-indexing
+未安装 CBM 时 llm-wiki 仍以 lexical 工具（`search_content`、`glob`、`read_file` 等）正常运行。
 
-**为何与模型绑定：** 语义向量由 embedding 模型生成。每个 `index.json` 会记录构建时使用的模型 id（`LLM_WIKI_TEI_MODEL`）。查询时的 embedding 必须使用**相同**模型，否则相似度分数无意义。
-
-**何时需要重新 `npm run index`：**
-
-| 场景 | 操作 |
-|------|------|
-| 首次启用 | `npm run sync:code` 后，TEI 就绪时执行 `npm run index` |
-| 代码有较大变更 | 手动 re-index，使搜索覆盖新/改文件（v1 无自动同步） |
-| **修改 `LLM_WIKI_TEI_MODEL`** | **必须**对三个 repo 全部 re-index |
-| TEI 服务换成别的模型 | 将 `LLM_WIKI_TEI_MODEL` 改为对应 id，再 re-index |
-
-**换模型示例：**
+代码有较大变更后：
 
 ```bash
-# .env — 例如从 bge-m3 换到另一个模型
-LLM_WIKI_TEI_MODEL=BAAI/bge-large-zh-v1.5
-LLM_WIKI_TEI_BASE_URL=http://127.0.0.1:8080
-
-npm run index
-npm run dev:server
+npm run sync:code && npm run cbm:sync
 ```
 
-**若忘记 re-index：** llm-wiki 会跳过 `index.json` 中 `model` 与当前 `LLM_WIKI_TEI_MODEL` 不一致的索引并打印警告；在重建索引前 `semantic_search` 可能不会注册。
-
-## Optional CodeGraph search
-
-CodeGraph 提供符号、调用链、影响分析等**结构化图查询**，与 lexical / semantic 工具互补。默认 `npm run dev` 无需 CodeGraph 即可运行；索引未就绪时 `codegraph_search` 会返回 init/sync 提示，Agent 可回退到 lexical 工具。
-
-**注意：** `code/.gitignore` 不能用 blanket `*` 忽略全部内容，否则 CodeGraph 扫描时会认为没有可索引文件（`No files found to index`）。llm-wiki 已改为只忽略三个 clone 目录名。
-
-推荐流程：
-
-```bash
-npm run sync:code
-npm run codegraph:init
-npm run dev:server
-```
-
-`codegraph:init` 会在 `code/chatkit-middleware`、`code/chatkit-web`、`code/finclaw` **分别**建立索引（不是对空的 `code/` 父目录 init）。若 `code/` 下没有 clone 出来的仓库，先执行 `npm run sync:code`。
-
-代码有较大变更后手动同步：
-
-```bash
-npm run codegraph:sync
-```
-
-索引位于各 repo 内的 `code/<repo>/.codegraph/`（本地 artifact，不提交到 llm-wiki git）。`codegraph_search` 会跨三个 repo 查询并合并结果。
+环境变量见 `.env.example`：`LLM_WIKI_CBM_ENABLED`、`LLM_WIKI_CBM_BINARY`、`LLM_WIKI_CBM_TOP_K`。
 
 | 场景 | 优先工具 |
 |------|----------|
-| 符号、调用链、影响范围 | `codegraph_search` |
-| 宽泛的功能/架构描述 | `semantic_search`（需 TEI + 语义索引） |
+| 符号、调用链、影响范围 | `cbm_search`（trace/query/impact） |
+| 宽泛的功能/架构描述 | `cbm_search`（semantic/architecture） |
 | 精确字符串、路由、env 名 | `search_content` |
+| CBM 不可用 | lexical 工具 |
+
+## Agent retrieval optimization
+
+问答前根据问题类型注入 **Retrieval plan**，并由 **硬路由** 要求先使用 preferred 工具（`src/retrieval/router.ts`）。
+
+| 问题类型 | Preferred 工具（须先行） |
+|----------|------------------------|
+| config | `glob`, `search_content` |
+| symbol | `cbm_search` |
+| listing | `cbm_search`, `glob` |
+| architecture | `cbm_search` |
+
+**Tool budget**（默认开启，**完整率优先** — 按题型设下限，env 不可压低于下限）：
+
+| 类型 | 总工具上限（下限） |
+|------|-------------------|
+| config | 28 |
+| listing | 26 |
+| architecture | 24 |
+| symbol | 18 |
+| general | 20 |
+
+另有：单工具上限、相同参数去重、连续空结果熔断。
+
+环境变量：`.env.example` 中 `LLM_WIKI_TOOL_BUDGET_*`、`LLM_WIKI_RETRIEVAL_ROUTING_ENABLED`。关闭路由：`LLM_WIKI_RETRIEVAL_ROUTING_ENABLED=false`。
+
+## CBM index status
+
+每次问答前可确认三仓库 CBM 索引是否与当前代码一致（`detect_changes`）。
+
+| 入口 | 说明 |
+|------|------|
+| 前端 **Index** 页 | `npm run dev` → 顶栏 Index（**Re-index** 按钮） |
+| `GET /api/index/status` | stale 状态、变更文件、sync job |
+| `POST /api/index/sync` | 后台触发 CBM re-index（409 若已在跑） |
+| `GET /health` | 含 `cbm` 段 |
+
+拉代码后自动重索引：`npm run sync:code:full`，或 `.env` 中 `LLM_WIKI_CBM_AUTO_SYNC=true`。
+
+`cbm:sync` 后写入 `.reasonix/cbm-index-state.json`（各 repo 索引时的 git HEAD）。
+
+## Evidence & debug runs
+
+每次问答写入 `.reasonix/runs/<runId>.json`（工具次数、plan 类型、budget 熔断、evidence、citation orphans）。
+
+| 入口 | 说明 |
+|------|------|
+| 前端 **Runs** 页 | 开发模式下 `npm run dev` → 顶栏 Runs |
+| `GET /api/runs` | 最近 run 列表 |
+| `GET /api/runs/:runId` | 单次 run 详情 |
+
+环境变量：`LLM_WIKI_EVIDENCE_STRICT`、`LLM_WIKI_RUN_TELEMETRY_ENABLED`。
+
+## Upgrade verification
+
+Golden 题集：`benchmarks/golden-questions.json`（15 题，含稳定性与 public lint 判据）。
+
+```bash
+npm run verify:upgrade -- --quick              # 3 题 × 3 次
+npm run verify:upgrade -- --id web-config-inventory
+npm run verify:upgrade                          # 全量
+```
+
+Cursor skill：`.cursor/skills/llm-wiki-upgrade-verify/SKILL.md`。
 
 ## MCP server
 
@@ -177,7 +239,7 @@ npm run codegraph:sync
 |------|------|------|
 | `ask_llm_wiki` | `question`、`repo_scope?` | 运行 llm-wiki Agent loop 检索三个授权 repo，直接返回完整答案 |
 
-`semantic_search` 与 `codegraph_search` 是 loop 内部工具，不单独暴露在 MCP `tools/list`；启用后 Agent 会在合适的问题类型上自动使用它们。
+`cbm_search` 是 loop 内部工具，不单独暴露在 MCP `tools/list`；CBM 就绪后 Agent 会在合适的问题类型上自动使用。
 
 在 `chatkit-middleware/tools/chatkit-web/chatkit-admin-mt` 的 MCP tools 页面新增 server，或写入 `chatkit-middleware/config/mcp-servers.yaml`：
 
@@ -218,5 +280,8 @@ url: http://host.docker.internal:3001/mcp
 
 ## Related docs
 
+- **项目进度**：[`docs/progress.zh.md`](docs/progress.zh.md)
+- 产品化路线图：[`docs/productization-roadmap.zh.md`](docs/productization-roadmap.zh.md)
+- CBM 接入：[`docs/codebase-memory-mcp-integration-plan.zh.md`](docs/codebase-memory-mcp-integration-plan.zh.md)
 - 需求：[`docs/architecture/llm-wiki-requirements.zh.md`](../docs/architecture/llm-wiki-requirements.zh.md)
 - 分阶段测试：[`docs/plans/2026-06-04-llm-wiki-phase1-test-acceptance.zh.md`](../docs/plans/2026-06-04-llm-wiki-phase1-test-acceptance.zh.md)

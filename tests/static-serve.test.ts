@@ -11,7 +11,6 @@ function testConfig(): LlmWikiConfig {
     REPO_CHATKIT_MIDDLEWARE: getProjectRoot(),
     REPO_CHATKIT_WEB: getProjectRoot(),
     REPO_FINCLAW: getProjectRoot(),
-    LLM_WIKI_TEI_BASE_URL: "",
   });
 }
 

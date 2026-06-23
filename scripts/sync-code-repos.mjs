@@ -55,3 +55,18 @@ for (const repo of repos) {
 }
 
 console.log("\nAll llm-wiki code repositories are ready under ./code.");
+
+const autoSync =
+  process.argv.includes("--cbm-sync") ||
+  ["1", "true", "yes"].includes((process.env.LLM_WIKI_CBM_AUTO_SYNC ?? "").trim().toLowerCase());
+
+if (autoSync) {
+  console.log("\n[sync:code] CBM re-index (auto)…");
+  const result = spawnSync(process.execPath, [path.join(projectRoot, "scripts", "cbm-sync.mjs")], {
+    cwd: projectRoot,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}

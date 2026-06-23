@@ -2,14 +2,21 @@ import type { FastifyInstance } from "fastify";
 import type { IncomingHttpHeaders } from "node:http";
 import { randomUUID } from "node:crypto";
 import type { LlmWikiConfig } from "../config.js";
+import {
+  applyAnswerProfile,
+  createSecurityAuditLogger,
+  maybeRecordSecurityAudit,
+} from "../core/security/index.js";
 import { DeepSeekClient } from "../core/client.js";
 import {
   LlmAnswerSummaryAgent,
   type AnswerSummaryAgent,
 } from "../answer-summary-agent.js";
 import type { CacheFirstLoop } from "../loop-runner.js";
-import { buildLoop } from "../loop-runner.js";
-import type { BuildLoopFn } from "./ask.js";
+import { buildLoopBundle } from "../loop-runner.js";
+import { finalizeRunAsk } from "../finalize-run.js";
+import { augmentQuestionWithRetrievalPlan } from "../retrieval/plan.js";
+import type { BuildLoopBundleFn } from "./ask.js";
 
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 const SERVER_NAME = "llm-wiki";
@@ -134,17 +141,53 @@ function stripForcedSummaryPrefix(answer: string): string {
   return answer.replace(/^errors\.reason(?:Stuck|Aborted|ContextGuard)\n\n/, "");
 }
 
-async function runAskTool(
+function debugMcp(message: string, fields: Record<string, unknown> = {}): void {
+  if (process.env.LLM_WIKI_DEBUG_MCP !== "true" && process.env.LLM_WIKI_DEBUG_TOOLS !== "true") {
+    return;
+  }
+  const suffix = Object.keys(fields).length > 0 ? ` ${JSON.stringify(fields)}` : "";
+  console.error(`[llm-wiki][mcp] ${message}${suffix}`);
+}
+
+function guardMcpAnswer(answer: string, cfg: LlmWikiConfig): string {
+  const guarded = applyAnswerProfile(answer, cfg.answerProfiles.mcp);
+  maybeRecordSecurityAudit(
+    createSecurityAuditLogger(`${cfg.projectRoot}/.reasonix/security-audit.jsonl`),
+    {
+      surface: "answer",
+      ...guarded.audit,
+    },
+  );
+  return guarded.text;
+}
+
+export async function runAskTool(
   loop: CacheFirstLoop,
   summaryAgent: AnswerSummaryAgent,
   args: AskToolArguments,
+  cfg: LlmWikiConfig,
+  handles?: { evidence: import("../core/evidence/index.js").EvidenceCollector; telemetry: import("../telemetry/run-telemetry.js").RunTelemetry },
 ): Promise<string> {
+  if (handles) {
+    const result = await finalizeRunAsk({
+      loop,
+      evidence: handles.evidence,
+      telemetry: handles.telemetry,
+      cfg,
+      question: args.question,
+      repoScope: args.repo_scope,
+      surface: "mcp",
+      summaryAgent,
+    });
+    return result.answer;
+  }
+
+  const answerParts: string[] = [];
   const promptParts = [
     args.repo_scope && args.repo_scope !== "all" ? `[repo_scope: ${args.repo_scope}]` : null,
-    args.question,
+    augmentQuestionWithRetrievalPlan(args.question),
   ].filter((part): part is string => Boolean(part));
   const question = promptParts.join("\n\n");
-  const answerParts: string[] = [];
 
   for await (const ev of loop.step(question)) {
     if (ev.role === "assistant_delta" || ev.role === "assistant_final") {
@@ -165,14 +208,14 @@ async function runAskTool(
       question: args.question,
       answer: rawAnswer,
     });
-    return summarized.trim() || rawAnswer;
+    return guardMcpAnswer(summarized.trim() || rawAnswer, cfg);
   } catch (err) {
     console.warn(
       `[llm-wiki] answer summary agent failed; returning raw answer: ${
         err instanceof Error ? err.message : String(err)
       }`,
     );
-    return rawAnswer;
+    return guardMcpAnswer(rawAnswer, cfg);
   }
 }
 
@@ -190,7 +233,7 @@ async function buildDefaultAnswerSummaryAgent(cfg: LlmWikiConfig): Promise<Answe
 export async function registerMcpRoutes(
   app: FastifyInstance,
   cfg: LlmWikiConfig,
-  buildLoopFn: BuildLoopFn = buildLoop,
+  buildLoopBundleFn: BuildLoopBundleFn = buildLoopBundle,
   buildAnswerSummaryAgentFn: BuildAnswerSummaryAgentFn = buildDefaultAnswerSummaryAgent,
 ): Promise<void> {
   const sessions = new Set<string>();
@@ -222,6 +265,7 @@ export async function registerMcpRoutes(
 
     const isNotification = body.id === undefined;
     const sessionId = getHeaderValue(request.headers, "mcp-session-id");
+    debugMcp("request", { method: method || "(missing)", hasSession: Boolean(sessionId) });
     if (method !== "initialize" && sessionId && !sessions.has(sessionId)) {
       return reply.code(404).send(failure(id, -32001, "Unknown or expired MCP session"));
     }
@@ -261,8 +305,14 @@ export async function registerMcpRoutes(
         }
 
         const args = parseAskArgs(params.arguments);
-        const loop = await buildLoopFn(cfg);
-        const summaryAgent = await buildAnswerSummaryAgentFn(cfg);
+        const answerFn = async () => {
+          const bundle = await buildLoopBundleFn(cfg, args.question);
+          const summaryAgent = await buildAnswerSummaryAgentFn(cfg);
+          return runAskTool(bundle.loop, summaryAgent, args, cfg, {
+            evidence: bundle.evidence,
+            telemetry: bundle.telemetry,
+          });
+        };
         if (acceptsEventStream(request.headers)) {
           reply.hijack();
           reply.raw.writeHead(200, {
@@ -271,7 +321,7 @@ export async function registerMcpRoutes(
             Connection: "keep-alive",
           });
           try {
-            const text = await runAskTool(loop, summaryAgent, args);
+            const text = await answerFn();
             if (!reply.raw.destroyed && !reply.raw.writableEnded) {
               reply.raw.write(
                 sseFrame(
@@ -300,7 +350,7 @@ export async function registerMcpRoutes(
           return;
         }
 
-        const text = await runAskTool(loop, summaryAgent, args);
+        const text = await answerFn();
         return reply.send(
           success(id, {
             content: [

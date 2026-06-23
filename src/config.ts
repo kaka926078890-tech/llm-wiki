@@ -8,18 +8,13 @@ export interface AuthorizedRoots {
   finclaw: string;
 }
 
-export type SemanticEnabled = true | false | "auto";
-export type EmbeddingProvider = "tei";
+export type CbmEnabled = true | false | "auto";
+export type AnswerProfile = "debug" | "internal" | "public";
 
-export interface SemanticConfig {
-  enabled: SemanticEnabled;
-  provider: EmbeddingProvider;
-  teiBaseUrl: string;
-  teiModel: string;
+export interface CbmConfig {
+  enabled: CbmEnabled;
+  binary: string;
   topK: number;
-  chunkChars: number;
-  chunkOverlap: number;
-  indexDir: string;
 }
 
 export interface LlmWikiConfig {
@@ -30,7 +25,11 @@ export interface LlmWikiConfig {
   port: number;
   host: string;
   repos: AuthorizedRoots;
-  semantic: SemanticConfig;
+  cbm: CbmConfig;
+  answerProfiles: {
+    agent: AnswerProfile;
+    mcp: AnswerProfile;
+  };
 }
 
 const DEFAULT_REPO_MIDDLEWARE = "code/chatkit-middleware";
@@ -67,11 +66,24 @@ function resolveRepoPath(
   return path.resolve(projectRoot, raw);
 }
 
-function parseSemanticEnabled(raw: string | undefined): SemanticEnabled {
+function parseCbmEnabled(raw: string | undefined): CbmEnabled {
   const normalized = raw?.trim().toLowerCase();
   if (normalized === "true" || normalized === "1" || normalized === "yes") return true;
   if (normalized === "false" || normalized === "0" || normalized === "no") return false;
   return "auto";
+}
+
+function parseAnswerProfile(
+  raw: string | undefined,
+  fallback: AnswerProfile,
+  envName: string,
+): AnswerProfile {
+  const normalized = raw?.trim().toLowerCase();
+  if (!normalized) return fallback;
+  if (normalized === "debug" || normalized === "internal" || normalized === "public") {
+    return normalized;
+  }
+  throw new Error(`${envName} must be one of: debug, internal, public`);
 }
 
 function clampInt(raw: string | undefined, fallback: number, min: number, max: number): number {
@@ -90,9 +102,6 @@ export function loadConfig(
   }
 
   const projectRoot = getProjectRoot();
-  const chunkChars = clampInt(env.LLM_WIKI_SEMANTIC_CHUNK_CHARS, 800, 300, 1000);
-  const rawOverlap = clampInt(env.LLM_WIKI_SEMANTIC_CHUNK_OVERLAP, 200, 0, 2000);
-  const chunkOverlap = Math.min(rawOverlap, chunkChars - 1);
 
   return {
     projectRoot,
@@ -114,15 +123,14 @@ export function loadConfig(
         DEFAULT_REPO_FINCLAW,
       ),
     },
-    semantic: {
-      enabled: parseSemanticEnabled(env.LLM_WIKI_SEMANTIC_ENABLED),
-      provider: "tei",
-      teiBaseUrl: env.LLM_WIKI_TEI_BASE_URL?.trim() || "",
-      teiModel: env.LLM_WIKI_TEI_MODEL?.trim() || "BAAI/bge-m3",
-      topK: clampInt(env.LLM_WIKI_SEMANTIC_TOP_K, 8, 1, 50),
-      chunkChars,
-      chunkOverlap,
-      indexDir: env.LLM_WIKI_SEMANTIC_INDEX_DIR?.trim() || ".reasonix/semantic",
+    cbm: {
+      enabled: parseCbmEnabled(env.LLM_WIKI_CBM_ENABLED),
+      binary: env.LLM_WIKI_CBM_BINARY?.trim() || "codebase-memory-mcp",
+      topK: clampInt(env.LLM_WIKI_CBM_TOP_K, 8, 1, 50),
+    },
+    answerProfiles: {
+      agent: parseAnswerProfile(env.LLM_WIKI_AGENT_ANSWER_PROFILE, "debug", "LLM_WIKI_AGENT_ANSWER_PROFILE"),
+      mcp: parseAnswerProfile(env.LLM_WIKI_MCP_ANSWER_PROFILE, "public", "LLM_WIKI_MCP_ANSWER_PROFILE"),
     },
   };
 }
