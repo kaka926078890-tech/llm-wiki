@@ -36,6 +36,8 @@ export interface RunTelemetrySnapshot {
   retrievalPlanKind?: string;
   evidenceBundle?: EvidenceBundle;
   citationReport?: CitationReport;
+  finalAnswer?: string;
+  knowledgeCardId?: string;
 }
 
 function parseBool(raw: string | undefined, fallback: boolean): boolean {
@@ -113,6 +115,8 @@ export class RunTelemetry {
     evidenceBundle: EvidenceBundle;
     citationReport: CitationReport;
     retrievalPlanKind?: string;
+    finalAnswer?: string;
+    knowledgeCardId?: string;
   }): RunTelemetrySnapshot {
     const snapshot: RunTelemetrySnapshot = {
       runId: this.runId,
@@ -132,6 +136,8 @@ export class RunTelemetry {
       retrievalPlanKind: input.retrievalPlanKind,
       evidenceBundle: input.evidenceBundle,
       citationReport: input.citationReport,
+      finalAnswer: input.finalAnswer,
+      knowledgeCardId: input.knowledgeCardId,
     };
 
     if (this.opts.enabled !== false) {

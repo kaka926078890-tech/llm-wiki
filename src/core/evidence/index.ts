@@ -251,3 +251,43 @@ export function formatEvidenceFooter(bundle: EvidenceBundle, report: CitationRep
   }
   return lines.join("\n");
 }
+
+export const NO_EVIDENCE_ANSWER =
+  "I cannot answer without repository evidence. This run recorded no tool reads or searches — retry with a narrower question so tools can verify claims.";
+
+export interface EvidencePolicyResult {
+  answer: string;
+  refused: boolean;
+  strippedOrphans: number;
+  policyNotes: string[];
+}
+
+export function applyEvidencePolicy(
+  answer: string,
+  bundle: EvidenceBundle,
+  report: CitationReport,
+  opts: { strict: boolean; refuseEmpty: boolean },
+): EvidencePolicyResult {
+  const policyNotes: string[] = [];
+
+  if (opts.refuseEmpty && bundle.items.length === 0 && bundle.negativeSearches.length === 0) {
+    return {
+      answer: NO_EVIDENCE_ANSWER,
+      refused: true,
+      strippedOrphans: 0,
+      policyNotes: ["no_evidence_refusal"],
+    };
+  }
+
+  let next = answer;
+  let strippedOrphans = 0;
+  if (opts.strict && report.orphans.length > 0) {
+    const before = next;
+    next = stripOrphanCitations(next, report.orphans);
+    strippedOrphans = report.orphans.length;
+    if (next !== before) policyNotes.push("orphan_citations_stripped");
+    policyNotes.push(`orphan_citations:${report.orphans.length}`);
+  }
+
+  return { answer: next, refused: false, strippedOrphans, policyNotes };
+}

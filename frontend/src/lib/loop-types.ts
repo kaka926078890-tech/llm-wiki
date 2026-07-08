@@ -39,8 +39,37 @@ export type AssistantSegment =
 export type AssistantMessageState = {
   segments: AssistantSegment[];
   pending: boolean;
+  evidenceMeta?: {
+    runId?: string;
+    summary?: string;
+    items: Array<{
+      path?: string;
+      line?: number;
+      lineEnd?: number;
+      excerptHash?: string;
+      redaction?: string;
+    }>;
+  };
 };
 
 export type ChatMessage =
   | { id: string; role: "user"; content: string }
-  | { id: string; role: "assistant"; segments: AssistantSegment[]; pending: boolean };
+  | {
+      id: string;
+      role: "assistant";
+      segments: AssistantSegment[];
+      pending: boolean;
+      evidenceMeta?: {
+        runId?: string;
+        summary?: string;
+        items: Array<{
+          path?: string;
+          line?: number;
+          lineEnd?: number;
+          excerptHash?: string;
+          redaction?: string;
+        }>;
+      };
+      savedKnowledge?: boolean;
+      knowledgeMerged?: boolean;
+    };

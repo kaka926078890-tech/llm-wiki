@@ -1,6 +1,7 @@
 import path from "node:path";
 
 import { formatCbmJson, runCbmCli } from "../cbm/exec.js";
+import { matchProjectForRepo, parseListProjects } from "../cbm/projects.js";
 import type { ToolRegistry } from "../core/tools.js";
 import {
   guardToolResult,
@@ -48,9 +49,21 @@ function namePattern(query: string): string {
   return `.*${escaped}.*`;
 }
 
-function buildCliCall(
+function semanticQueryKeywords(query: string): string[] {
+  const tokens = query
+    .trim()
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter((token) => token.length >= 2);
+  const unique = [...new Set(tokens)];
+  if (unique.length > 0) return unique.slice(0, 8);
+  const fallback = query.trim().slice(0, 48);
+  return fallback ? [fallback] : [];
+}
+
+export function buildCliCall(
   operation: CbmOperation,
-  repoPath: string,
+  project: string,
   args: {
     query?: string;
     function_name?: string;
@@ -61,21 +74,20 @@ function buildCliCall(
   defaultTopK: number,
 ): { tool: string; payload: Record<string, unknown> } {
   const limit = clampInt(args.top_k, defaultTopK, 1, 50);
-  const repo_path = repoPath;
 
   switch (operation) {
     case "semantic":
       if (!args.query?.trim()) throw new Error("cbm_search semantic requires a non-empty query");
       return {
         tool: "search_graph",
-        payload: { repo_path, semantic_query: args.query.trim(), limit },
+        payload: { project, semantic_query: semanticQueryKeywords(args.query), limit },
       };
     case "query":
       if (!args.query?.trim()) throw new Error("cbm_search query requires a non-empty query");
       return {
         tool: "search_graph",
         payload: {
-          repo_path,
+          project,
           name_pattern: namePattern(args.query),
           ...(args.label?.trim() ? { label: args.label.trim() } : {}),
           limit,
@@ -89,18 +101,18 @@ function buildCliCall(
         : "both";
       return {
         tool: "trace_path",
-        payload: { repo_path, function_name: fn, direction, depth: 5 },
+        payload: { project, function_name: fn, direction, depth: 5 },
       };
     }
     case "architecture":
-      return { tool: "get_architecture", payload: { repo_path } };
+      return { tool: "get_architecture", payload: { project } };
     case "impact":
-      return { tool: "detect_changes", payload: { repo_path } };
+      return { tool: "detect_changes", payload: { project } };
     case "cypher":
       if (!args.query?.trim()) throw new Error("cbm_search cypher requires a non-empty query");
-      return { tool: "query_graph", payload: { repo_path, query: args.query.trim() } };
+      return { tool: "query_graph", payload: { project, query: args.query.trim() } };
     case "status":
-      return { tool: "index_status", payload: { repo_path } };
+      return { tool: "index_status", payload: { project } };
   }
 }
 
@@ -116,12 +128,43 @@ function guardOutput(body: string, audit?: SecurityAuditLogger): string {
 
 function missingIndexMessage(repoPaths: Array<{ repo: string; path: string }>): string {
   return [
-    "codebase-memory-mcp index is unavailable or the query failed.",
+    "codebase-memory-mcp index is not available for the requested repo(s).",
     "Install: curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh | bash",
     "Then run `npm run sync:code` and `npm run cbm:init`.",
     "Expected repos:",
     ...repoPaths.map((entry) => `- ${entry.repo}: ${entry.path}`),
   ].join("\n");
+}
+
+function queryFailedMessage(detail: string): string {
+  return [
+    "codebase-memory-mcp query failed for the indexed project(s).",
+    detail,
+  ].join("\n\n");
+}
+
+async function resolveCbmProjects(
+  binary: string,
+  targets: Array<{ repo: string; path: string }>,
+): Promise<
+  | { ok: true; entries: Array<{ repo: string; path: string; project: string }> }
+  | { ok: false; error: string }
+> {
+  const listed = await runCbmCli(binary, "list_projects", {});
+  if (!listed.ok) return { ok: false, error: listed.error };
+  let projects;
+  try {
+    projects = parseListProjects(JSON.parse(listed.stdout.trim()));
+  } catch {
+    return { ok: false, error: "invalid list_projects JSON" };
+  }
+  const entries = targets
+    .map((target) => {
+      const matched = matchProjectForRepo(projects, target.path);
+      return matched ? { ...target, project: matched.name } : null;
+    })
+    .filter((entry): entry is { repo: string; path: string; project: string } => entry !== null);
+  return { ok: true, entries };
 }
 
 function mergeRankedResults(parsed: unknown[], topK: number): unknown[] {
@@ -217,19 +260,33 @@ export function registerCbmSearchTool(
         return guardOutput(formatCbmJson(list.stdout), opts.securityAudit);
       }
 
+      try {
+        buildCliCall(operation, "_", args, topK);
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err);
+      }
+
+      const resolved = await resolveCbmProjects(opts.binary, targets);
+      if (!resolved.ok) {
+        return [missingIndexMessage(targets), resolved.error].filter(Boolean).join("\n\n");
+      }
+      if (resolved.entries.length === 0) {
+        return missingIndexMessage(targets);
+      }
+
       let cliCall: { tool: string; payload: Record<string, unknown> };
       try {
-        cliCall = buildCliCall(operation, targets[0]!.path, args, topK);
+        cliCall = buildCliCall(operation, resolved.entries[0]!.project, args, topK);
       } catch (err) {
         return err instanceof Error ? err.message : String(err);
       }
 
       const results = await Promise.all(
-        targets.map(async (entry) => {
+        resolved.entries.map(async (entry) => {
           const call = operation === "architecture" || operation === "impact" || operation === "cypher"
-            ? buildCliCall(operation, entry.path, args, topK)
-            : { ...cliCall, payload: { ...cliCall.payload, repo_path: entry.path } };
-          const result = await runCbmCli(opts.binary, call.tool, call.payload, opts.projectRoot);
+            ? buildCliCall(operation, entry.project, args, topK)
+            : { ...cliCall, payload: { ...cliCall.payload, project: entry.project } };
+          const result = await runCbmCli(opts.binary, call.tool, call.payload);
           return { repo: entry.repo, ...result };
         }),
       );
@@ -239,12 +296,18 @@ export function registerCbmSearchTool(
 
       if (successes.length === 0) {
         const detail = failures.map((result) => `${result.repo}: ${result.error}`).join("\n\n");
-        return [missingIndexMessage(repoPaths), detail].filter(Boolean).join("\n\n");
+        return queryFailedMessage(detail);
       }
+
+      const skipped = targets
+        .filter((target) => !resolved.entries.some((entry) => entry.repo === target.repo))
+        .map((target) => `${target.repo}: not indexed`);
+      const skippedNote = skipped.length > 0 ? `\n\nSkipped (not indexed): ${skipped.join("; ")}` : "";
 
       if (operation === "architecture" || operation === "impact") {
         return guardOutput(
-          successes.map((result) => `## ${result.repo}\n${formatCbmJson(result.stdout)}`).join("\n\n"),
+          successes.map((result) => `## ${result.repo}\n${formatCbmJson(result.stdout)}`).join("\n\n")
+            + skippedNote,
           opts.securityAudit,
         );
       }
@@ -265,13 +328,14 @@ export function registerCbmSearchTool(
         });
         const merged = mergeRankedResults(parsed, topK);
         if (merged.length === 0) {
-          return "No CBM matches. Fall back to search_content, glob, or read_file.";
+          return `No CBM matches. Fall back to search_content, glob, or read_file.${skippedNote}`;
         }
-        return guardOutput(JSON.stringify(merged, null, 2), opts.securityAudit);
+        return guardOutput(JSON.stringify(merged, null, 2) + skippedNote, opts.securityAudit);
       }
 
       return guardOutput(
-        successes.map((result) => `## ${result.repo}\n${formatCbmJson(result.stdout)}`).join("\n\n"),
+        successes.map((result) => `## ${result.repo}\n${formatCbmJson(result.stdout)}`).join("\n\n")
+          + skippedNote,
         opts.securityAudit,
       );
     },

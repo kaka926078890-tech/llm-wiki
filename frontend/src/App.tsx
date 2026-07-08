@@ -2,14 +2,17 @@ import { useCallback, useRef, useState } from "react";
 
 import type { ChatMessage } from "./lib/loop-types";
 import { callMcpAsk } from "./lib/mcp-client";
+import { resolveAnswerForSave } from "./lib/answer-text";
+import { fetchMcpRunEvidence } from "./lib/fetch-mcp-run";
 import { createAssistantState, reduceLoopEvent } from "./lib/sse-reducer";
 import { streamAgentRun } from "./lib/sse-client";
 import { Composer } from "./ui/composer";
 import { IndexPanel } from "./ui/index-panel";
+import { KnowledgePanel } from "./ui/knowledge-panel";
 import { RunsPanel } from "./ui/runs-panel";
 import { AssistantMsg, UserMsg } from "./ui/thread";
 
-type AppView = "chat" | "runs" | "index";
+type AppView = "chat" | "runs" | "index" | "knowledge";
 
 let nextId = 0;
 function uid(): string {
@@ -56,11 +59,6 @@ export default function App() {
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
     scrollToEnd();
 
-    const history = [...messages, userMsg].map((m) => ({
-      role: m.role,
-      content: m.role === "user" ? m.content : m.segments.filter((s) => s.kind === "text").map((s) => s.text).join("\n\n"),
-    }));
-
     abortRef.current?.abort();
     const ac = new AbortController();
     abortRef.current = ac;
@@ -72,6 +70,7 @@ export default function App() {
           repoScope,
           signal: ac.signal,
         });
+        const mcpEvidence = await fetchMcpRunEvidence(text);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId && m.role === "assistant"
@@ -79,6 +78,12 @@ export default function App() {
                   ...m,
                   segments: [{ kind: "text", text: answer || "(empty MCP response)" }],
                   pending: false,
+                  evidenceMeta: mcpEvidence
+                    ? {
+                        runId: mcpEvidence.runId,
+                        items: mcpEvidence.items,
+                      }
+                    : undefined,
                 }
               : m,
           ),
@@ -110,14 +115,19 @@ export default function App() {
 
     try {
       await streamAgentRun({
-        messages: history,
+        messages: [{ role: "user", content: text }],
         signal: ac.signal,
         onEvent: (ev) => {
           state = reduceLoopEvent(state, ev);
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantId && m.role === "assistant"
-                ? { ...m, segments: state.segments, pending: state.pending }
+                ? {
+                    ...m,
+                    segments: state.segments,
+                    pending: state.pending,
+                    evidenceMeta: state.evidenceMeta,
+                  }
                 : m,
             ),
           );
@@ -152,6 +162,64 @@ export default function App() {
       abortRef.current = null;
     }
   }, [draft, messages, pending, repoScope, runMode]);
+
+  const saveKnowledge = useCallback(async (assistantId: string) => {
+    const assistantIdx = messages.findIndex((m) => m.id === assistantId);
+    if (assistantIdx < 0) return;
+    const assistant = messages[assistantIdx];
+    if (assistant.role !== "assistant" || assistant.savedKnowledge) return;
+
+    let userQuestion = "";
+    for (let i = assistantIdx - 1; i >= 0; i -= 1) {
+      const msg = messages[i];
+      if (msg?.role === "user") {
+        userQuestion = msg.content;
+        break;
+      }
+    }
+    if (!userQuestion) return;
+
+    const answer = await resolveAnswerForSave({
+      segments: assistant.segments,
+      runId: assistant.evidenceMeta?.runId,
+    });
+    if (!answer) return;
+
+    const evidence = (assistant.evidenceMeta?.items ?? [])
+      .filter((item) => item.path)
+      .map((item) => ({
+        path: item.path!,
+        startLine: item.line,
+        endLine: item.lineEnd,
+        hash: item.excerptHash,
+        redacted: item.redaction === "redact" || item.redaction === "metadata_only",
+      }));
+
+    try {
+      const res = await fetch("/api/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: userQuestion,
+          answer,
+          evidence,
+          sourceRunId: assistant.evidenceMeta?.runId,
+          confidence: "verified",
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = (await res.json()) as { card?: { id: string }; merged?: boolean };
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantId && m.role === "assistant"
+            ? { ...m, savedKnowledge: true, knowledgeMerged: body.merged === true }
+            : m,
+        ),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [messages]);
 
   const onAbort = () => {
     abortRef.current?.abort();
@@ -192,6 +260,13 @@ export default function App() {
             >
               Index
             </button>
+            <button
+              type="button"
+              className={view === "knowledge" ? "is-active" : ""}
+              onClick={() => setView("knowledge")}
+            >
+              Knowledge
+            </button>
           </div>
           {view === "chat" ? (
           <div className="mode-tabs">
@@ -227,11 +302,24 @@ export default function App() {
         </div>
       </header>
 
-      <main className="app__thread" aria-label={view === "chat" ? "Conversation" : view === "runs" ? "Debug runs" : "Index status"}>
+      <main
+        className="app__thread"
+        aria-label={
+          view === "chat"
+            ? "Conversation"
+            : view === "runs"
+              ? "Debug runs"
+              : view === "knowledge"
+                ? "Knowledge cards"
+                : "Index status"
+        }
+      >
         {view === "runs" ? (
           <RunsPanel />
         ) : view === "index" ? (
           <IndexPanel />
+        ) : view === "knowledge" ? (
+          <KnowledgePanel />
         ) : (
         <>
         {messages.length === 0 ? (
@@ -245,7 +333,20 @@ export default function App() {
           m.role === "user" ? (
             <UserMsg key={m.id} text={m.content} />
           ) : (
-            <AssistantMsg key={m.id} segments={m.segments} pending={m.pending} />
+            <AssistantMsg
+              key={m.id}
+              segments={m.segments}
+              pending={m.pending}
+              evidenceSummary={m.evidenceMeta?.summary}
+              runId={m.evidenceMeta?.runId}
+              onSaveKnowledge={
+                !m.pending && m.evidenceMeta?.runId
+                  ? () => void saveKnowledge(m.id)
+                  : undefined
+              }
+              saveDisabled={m.savedKnowledge}
+              saveLabel={m.savedKnowledge ? (m.knowledgeMerged ? "Merged" : "Saved") : undefined}
+            />
           ),
         )}
         {error ? <p className="app__error">{error}</p> : null}

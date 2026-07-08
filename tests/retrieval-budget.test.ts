@@ -15,7 +15,24 @@ describe("retrieval budget", () => {
     const budget = new RetrievalBudget({ enabled: true, totalMax: 2 });
     expect(budget.beforeCall("glob", { pattern: "a" })).toBeNull();
     expect(budget.beforeCall("glob", { pattern: "b" })).toBeNull();
+    expect(budget.isTotalExhausted()).toBe(false);
     expect(budget.beforeCall("glob", { pattern: "c" })).toContain("budget exhausted");
+    expect(budget.isTotalExhausted()).toBe(true);
+    expect(budget.shouldStopRetrieval()).toBe(true);
+  });
+
+  it("hides exhausted tools and stops after repeated budget blocks", () => {
+    const budget = new RetrievalBudget({
+      enabled: true,
+      totalMax: 20,
+      perToolMax: { read_file: 1 },
+    });
+    expect(budget.beforeCall("read_file", { path: "a.md" })).toBeNull();
+    expect(budget.isToolExhausted("read_file")).toBe(true);
+    expect(budget.beforeCall("read_file", { path: "b.md" })).toContain("per-tool limit");
+    expect(budget.shouldStopRetrieval()).toBe(false);
+    expect(budget.beforeCall("read_file", { path: "c.md" })).toContain("per-tool limit");
+    expect(budget.shouldStopRetrieval()).toBe(true);
   });
 
   it("tracks empty streak on search tools", () => {

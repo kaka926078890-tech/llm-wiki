@@ -198,7 +198,7 @@ describe("routes-mcp", () => {
         params: {
           name: "ask_llm_wiki",
           arguments: {
-            question: "模板有什么功能？",
+            question: "模板发布的审批逻辑是什么",
           },
         },
       },
@@ -208,7 +208,7 @@ describe("routes-mcp", () => {
       .content[0]!.text;
     expect(text).toBe("模板管理支持创建、编辑和发布模板。");
     expect(summarize).toHaveBeenCalledWith({
-      question: "模板有什么功能？",
+      question: "模板发布的审批逻辑是什么",
       answer: rawAnswer,
     });
     await app.close();
@@ -699,6 +699,45 @@ describe("routes-mcp", () => {
     });
     expect(res.body).not.toContain("result_id: wiki_");
     expect(res.body).not.toContain("read_llm_wiki_result");
+    await app.close();
+  });
+
+  it("refuses MCP answers when no tool evidence was collected", async () => {
+    const { EvidenceCollector } = await import("../src/core/evidence/index.js");
+    const { RunTelemetry } = await import("../src/telemetry/run-telemetry.js");
+    const app = await createApp({
+      config: testConfig(),
+      buildLoopBundle: async (_cfg, question) => ({
+        loop: mockLoop([
+          {
+            turn: 1,
+            role: "assistant_final",
+            content: "Guessing without tools.",
+          },
+          { turn: 1, role: "done", content: "" },
+        ]),
+        evidence: new EvidenceCollector("run-refuse", question),
+        telemetry: new RunTelemetry({ enabled: false }, "run-refuse"),
+      }),
+    });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp",
+      payload: {
+        jsonrpc: "2.0",
+        id: "refuse",
+        method: "tools/call",
+        params: {
+          name: "ask_llm_wiki",
+          arguments: { question: "no tools used" },
+        },
+      },
+    });
+
+    const text = (res.json() as { result: { content: Array<{ text: string }> } }).result
+      .content[0]!.text;
+    expect(text).toContain("cannot answer without repository evidence");
     await app.close();
   });
 });

@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from "react";
+import { memo, useEffect, useState, type ReactNode } from "react";
 
 import { Markdown } from "../Markdown";
 import { I } from "./icons";
@@ -25,6 +25,9 @@ export function Card({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  useEffect(() => {
+    setOpen(defaultOpen);
+  }, [defaultOpen]);
   return (
     <div className={compact ? "card is-compact" : "card"} data-tone={tone} data-open={open}>
       <button
@@ -110,11 +113,13 @@ export function ToolCard({
   args,
   result,
   ok,
+  defaultOpen = false,
 }: {
   name: string;
   args?: string;
   result?: string;
   ok?: boolean;
+  defaultOpen?: boolean;
 }) {
   const running = result === undefined;
   const tone: Tone = running ? "default" : ok === false ? "danger" : "success";
@@ -124,7 +129,7 @@ export function ToolCard({
       icon={<I.wrench size={12} />}
       kind="tool"
       name={name}
-      defaultOpen={false}
+      defaultOpen={defaultOpen}
       compact
       meta={
         running ? (

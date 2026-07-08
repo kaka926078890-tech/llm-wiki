@@ -109,4 +109,55 @@ describe("sse-reducer", () => {
     ]);
     expect(state.pending).toBe(false);
   });
+
+  it("P4-RED-06 short debug footer assistant_final does not clobber long answer", () => {
+    let state = createAssistantState();
+    state = reduceLoopEvent(state, {
+      turn: 1,
+      role: "assistant_final",
+      content: "# Feature list\n\n".repeat(20),
+    });
+    state = reduceLoopEvent(state, {
+      turn: 1,
+      role: "assistant_final",
+      content: "---\nevidence: 372 item(s), negative searches: 3",
+    });
+    const text = state.segments.find((s) => s.kind === "text");
+    expect(text?.kind).toBe("text");
+    if (text?.kind !== "text") return;
+    expect(text.text).toContain("# Feature list");
+    expect(text.text).toContain("evidence: 372 item(s)");
+  });
+
+  it("P4-RED-08 done event does not duplicate force-summary answer", () => {
+    let state = createAssistantState();
+    const body = "## chatkit-web 详细功能清单\n\n" + "x".repeat(200);
+    state = reduceLoopEvent(state, {
+      turn: 1,
+      role: "assistant_final",
+      content: `errors.reasonBudget\n\n${body}`,
+    });
+    state = reduceLoopEvent(state, { turn: 1, role: "done", content: body });
+    const text = state.segments.find((s) => s.kind === "text");
+    expect(text?.kind).toBe("text");
+    if (text?.kind !== "text") return;
+    expect(text.text.match(/## chatkit-web 详细功能清单/g)?.length).toBe(1);
+  });
+
+  it("P4-RED-07 evidence event stores summary without appending text segment", () => {
+    let state = createAssistantState();
+    state = reduceLoopEvent(state, {
+      turn: 1,
+      role: "evidence",
+      content: JSON.stringify({
+        evidenceCount: 12,
+        citationOrphans: 1,
+        runId: "run-abc-def",
+        items: [{ path: "a.ts" }],
+      }),
+    });
+    expect(state.segments).toHaveLength(0);
+    expect(state.evidenceMeta?.summary).toContain("Evidence: 12 item(s)");
+    expect(state.evidenceMeta?.runId).toBe("run-abc-def");
+  });
 });

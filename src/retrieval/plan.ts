@@ -36,7 +36,7 @@ const HINTS: Record<RetrievalPlanKind, string> = {
   symbol:
     "[Retrieval plan: symbol] Prefer cbm_search (trace/query); verify with a narrow read_file range.",
   listing:
-    "[Retrieval plan: listing] Use cbm_search architecture or directory_tree/glob per repo root; read README/package manifests; cover every major module before concluding.",
+    "[Retrieval plan: listing] Call cbm_search architecture ONCE per repo for an overview, then switch to glob + read_file on README/package manifests. Do NOT repeat cbm_search query/status after architecture returns. Avoid directory_tree until CBM or glob has located paths. Cover every major module before concluding. If a tool returns a budget error (per-tool limit / budget exhausted), do NOT call that tool again — answer from evidence already collected.",
   architecture:
     "[Retrieval plan: architecture] Use cbm_search semantic or architecture first, then read 2–4 key files — not whole directories.",
   general:

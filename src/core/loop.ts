@@ -117,6 +117,10 @@ export interface CacheFirstLoopOptions {
   confirmationGate?: PauseGate;
   /** Re-runs the prompt builder (applyMemoryStack / codeSystemPrompt) on /new so REASONIX.md edits take effect without a restart. Accepting a cache miss is the price. */
   rebuildSystem?: () => string;
+  /** When true after tool dispatch, end the turn with a forced summary instead of another LLM iter. */
+  retrievalStopCheck?: () => boolean;
+  /** Omit exhausted tools from the model tool list so it cannot re-request them. */
+  retrievalToolAllowed?: (name: string) => boolean;
 }
 
 export interface ReconfigurableOptions {
@@ -222,6 +226,8 @@ export class CacheFirstLoop {
   private _foldedThisTurn = false;
   private context!: ContextManager;
   private _lastCacheShape: CacheShapeSnapshot | null = null;
+  private readonly _retrievalStopCheck: (() => boolean) | null;
+  private readonly _retrievalToolAllowed: ((name: string) => boolean) | null;
 
   /** Subscribe API so UI hooks can derive `running` from finally-guaranteed insertions. */
   get inflight(): InflightSet {
@@ -250,6 +256,8 @@ export class CacheFirstLoop {
     this.hookCwd = opts.hookCwd ?? process.cwd();
     this.confirmationGate = opts.confirmationGate ?? defaultPauseGate;
     this._rebuildSystem = opts.rebuildSystem ?? null;
+    this._retrievalStopCheck = opts.retrievalStopCheck ?? null;
+    this._retrievalToolAllowed = opts.retrievalToolAllowed ?? null;
     this.maxIterPerTurn = opts.maxIterPerTurn ?? CacheFirstLoop.DEFAULT_MAX_ITER_PER_TURN;
 
     this._streamPreference = opts.stream ?? true;
@@ -946,7 +954,10 @@ export class CacheFirstLoop {
       // Snapshot prefix evidence from the same turn-start tool list sent
       // to the API so MCP hot-adds during the turn don't rewrite history.
       const prefixEvidence = this.prefix.diagnosticHashes(toolSpecs);
-      const cacheShape = this.cacheShapeForRequest(prefixEvidence, toolSpecs);
+      const activeToolSpecs = this._retrievalToolAllowed
+        ? toolSpecs.filter((spec) => this._retrievalToolAllowed!(spec.function.name))
+        : toolSpecs;
+      const cacheShape = this.cacheShapeForRequest(prefixEvidence, activeToolSpecs);
 
       try {
         callModel = this.model;
@@ -955,7 +966,7 @@ export class CacheFirstLoop {
             client: this.client,
             model: callModel,
             messages,
-            toolSpecs,
+            toolSpecs: activeToolSpecs,
             signal,
             reasoningEffort: this.reasoningEffort,
             maxTokens: this.maxOutputTokens,
@@ -969,7 +980,7 @@ export class CacheFirstLoop {
           const resp = await this.client.chat({
             model: callModel,
             messages,
-            tools: toolSpecs.length ? toolSpecs : undefined,
+            tools: activeToolSpecs.length ? activeToolSpecs : undefined,
             signal,
             thinking: thinkingModeForModel(callModel),
             reasoningEffort: this.reasoningEffort,
@@ -1234,6 +1245,23 @@ export class CacheFirstLoop {
         appendAndPersist: (m) => this.appendAndPersist(m),
         rateLimitState,
       });
+
+      if (this._retrievalStopCheck?.()) {
+        yield {
+          turn: this._turn,
+          role: "warning",
+          severity: "low",
+          content:
+            "Tool budget exhausted — summarizing from evidence already collected instead of requesting more tools.",
+        };
+        try {
+          yield* forceSummaryAfterIterLimit(this.summaryContext(), { reason: "budget" });
+        } finally {
+          restoreModelIfNeeded();
+          this._steerQueue.length = 0;
+        }
+        return;
+      }
     }
     // Unreachable — the for-loop above is unbounded. The model exits the
     // loop via return statements when it produces no more tool calls,

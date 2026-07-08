@@ -56,6 +56,18 @@ function upsertToolSegment(
   ];
 }
 
+function mergeFinalText(lastText: string, newText: string): string {
+  if (lastText === newText) return lastText;
+  if (lastText.includes(newText)) return lastText;
+  if (newText.includes(lastText)) return newText;
+  const anchor = newText.slice(0, Math.min(120, newText.length)).trim();
+  if (anchor.length >= 40 && lastText.includes(anchor)) return lastText;
+  if (newText.length < lastText.length) {
+    return `${lastText}\n\n${newText}`;
+  }
+  return newText;
+}
+
 /** Apply one LoopEvent to the in-flight assistant message state. */
 export function reduceLoopEvent(
   state: AssistantMessageState,
@@ -70,23 +82,26 @@ export function reduceLoopEvent(
       if (ev.content) {
         segments = appendSegment(segments, "text", ev.content);
       }
-      return { segments, pending: true };
+      return { segments, pending: true, evidenceMeta: state.evidenceMeta };
     }
     case "assistant_final":
     case "done": {
       let segments = state.segments;
       const text = ev.content?.trim();
-      if (text) {
+      if (text && ev.role !== "done") {
         const last = segments[segments.length - 1];
         if (last?.kind === "text") {
-          if (last.text !== text) {
-            segments = [...segments.slice(0, -1), { kind: "text", text }];
-          }
+          segments = [
+            ...segments.slice(0, -1),
+            { kind: "text", text: mergeFinalText(last.text, text) },
+          ];
         } else {
           segments = [...segments, { kind: "text", text }];
         }
+      } else if (text && ev.role === "done") {
+        // ponytail: done content duplicates force-summary assistant_final — only flip pending
       }
-      return { segments, pending: false };
+      return { segments, pending: false, evidenceMeta: state.evidenceMeta };
     }
     case "tool_start": {
       const callId = ev.callId ?? `tool-${state.segments.length}`;
@@ -102,7 +117,9 @@ export function reduceLoopEvent(
     }
     case "tool": {
       const callId = ev.callId ?? `tool-${state.segments.length}`;
-      const ok = !/^error\b/i.test(ev.content.trim());
+      const ok =
+        !/^error\b/i.test(ev.content.trim())
+        && !/"budget"\s*:/.test(ev.content);
       return {
         ...state,
         segments: upsertToolSegment(state.segments, {
@@ -121,14 +138,29 @@ export function reduceLoopEvent(
           evidenceCount?: number;
           citationOrphans?: number;
           runId?: string;
+          evidenceRefused?: boolean;
+          policyNotes?: string[];
+          items?: Array<{
+            path?: string;
+            line?: number;
+            lineEnd?: number;
+            excerptHash?: string;
+            redaction?: string;
+          }>;
         };
         const summary =
-          `Evidence bundle: ${data.evidenceCount ?? 0} item(s), `
+          `Evidence: ${data.evidenceCount ?? 0} item(s), `
           + `${data.citationOrphans ?? 0} orphan citation(s)`
-          + (data.runId ? ` · run ${data.runId}` : "");
+          + (data.runId ? ` · run ${data.runId.slice(0, 8)}` : "")
+          + (data.evidenceRefused ? " · refused (no evidence)" : "");
         return {
-          segments: appendSegment(state.segments, "text", `\n\n---\n${summary}`),
-          pending: state.pending,
+          segments: state.segments,
+          pending: false,
+          evidenceMeta: {
+            runId: data.runId,
+            summary,
+            items: data.items ?? [],
+          },
         };
       } catch {
         return state;

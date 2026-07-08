@@ -9,6 +9,7 @@ import type { BuildLoopBundleFn } from "./routes/ask.js";
 import { registerAskRoutes } from "./routes/ask.js";
 import { registerHealthRoutes } from "./routes/health.js";
 import { registerIndexRoutes } from "./routes/index.js";
+import { registerKnowledgeRoutes } from "./routes/knowledge.js";
 import { registerRunsRoutes } from "./routes/runs.js";
 import { type BuildAnswerSummaryAgentFn, registerMcpRoutes } from "./routes/mcp.js";
 
@@ -24,6 +25,7 @@ export async function createApp(opts: CreateAppOptions) {
 
   await registerHealthRoutes(app, opts.config);
   await registerIndexRoutes(app, opts.config);
+  await registerKnowledgeRoutes(app, opts.config);
   await registerRunsRoutes(app, opts.config);
   await registerAskRoutes(app, opts.config, opts.buildLoopBundle);
   await registerMcpRoutes(

@@ -3,11 +3,12 @@ import type { AnswerSummaryAgent } from "./answer-summary-agent.js";
 import type { CacheFirstLoop } from "./loop-runner.js";
 import {
   EvidenceCollector,
+  applyEvidencePolicy,
   formatEvidenceFooter,
-  stripOrphanCitations,
   validateCitations,
   type CitationReport,
   type EvidenceBundle,
+  type EvidencePolicyResult,
 } from "./core/evidence/index.js";
 import {
   applyAnswerProfile,
@@ -15,6 +16,13 @@ import {
   maybeRecordSecurityAudit,
 } from "./core/security/index.js";
 import { augmentQuestionWithRetrievalPlan, classifyRetrievalPlan } from "./retrieval/plan.js";
+import { findRelevantKnowledgeCards, formatKnowledgeHints } from "./core/knowledge/retrieval.js";
+import {
+  evidenceBundleFromCard,
+  tryKnowledgeFastPath,
+} from "./core/knowledge/fast-path.js";
+import type { KnowledgeCard } from "./core/knowledge/types.js";
+import { loadKnowledgeStore } from "./core/knowledge/store.js";
 import { RunTelemetry, type RunTelemetrySnapshot } from "./telemetry/run-telemetry.js";
 
 function parseBool(raw: string | undefined, fallback: boolean): boolean {
@@ -25,14 +33,28 @@ function parseBool(raw: string | undefined, fallback: boolean): boolean {
 }
 
 function stripForcedSummaryPrefix(answer: string): string {
-  return answer.replace(/^errors\.reason(?:Stuck|Aborted|ContextGuard)\n\n/, "");
+  return answer.replace(/^errors\.reason(?:Stuck|Aborted|ContextGuard|Budget)\n\n/, "");
 }
 
-export function buildAskPrompt(question: string, repoScope?: string): string {
+/** Listing/architecture answers are already structured — skip the extra MCP summary LLM call. */
+export function shouldSkipMcpSummary(question: string, env: NodeJS.ProcessEnv = process.env): boolean {
+  if (parseBool(env.LLM_WIKI_MCP_SKIP_SUMMARY, false)) return true;
+  const kind = classifyRetrievalPlan(question).kind;
+  return kind === "listing" || kind === "architecture";
+}
+
+export function buildAskPrompt(question: string, repoScope?: string, cfg?: LlmWikiConfig): string {
   const promptParts = [
     repoScope && repoScope !== "all" ? `[repo_scope: ${repoScope}]` : null,
-    augmentQuestionWithRetrievalPlan(question),
   ].filter((part): part is string => Boolean(part));
+
+  if (cfg) {
+    const cards = findRelevantKnowledgeCards(loadKnowledgeStore(cfg.projectRoot), question);
+    const hints = formatKnowledgeHints(cards);
+    if (hints) promptParts.push(hints);
+  }
+
+  promptParts.push(augmentQuestionWithRetrievalPlan(question));
   return promptParts.join("\n\n");
 }
 
@@ -44,6 +66,7 @@ export interface PostProcessInput {
   question: string;
   surface: "agent" | "mcp";
   summaryAgent?: AnswerSummaryAgent;
+  knowledgeCardId?: string;
 }
 
 export interface RunAskResult {
@@ -51,6 +74,7 @@ export interface RunAskResult {
   rawAnswer: string;
   evidenceBundle: EvidenceBundle;
   citationReport: CitationReport;
+  evidencePolicy: EvidencePolicyResult;
   telemetry: RunTelemetrySnapshot;
 }
 
@@ -61,10 +85,13 @@ export async function postProcessRunAnswer(input: PostProcessInput): Promise<Run
   let citationReport = validateCitations(rawAnswer, evidenceBundle);
 
   const strictEvidence = parseBool(process.env.LLM_WIKI_EVIDENCE_STRICT, true);
-  if (input.surface === "mcp" && strictEvidence && citationReport.orphans.length > 0) {
-    rawAnswer = stripOrphanCitations(rawAnswer, citationReport.orphans);
-    citationReport = validateCitations(rawAnswer, evidenceBundle);
-  }
+  const refuseEmpty = parseBool(process.env.LLM_WIKI_EVIDENCE_REFUSE_EMPTY, true);
+  const evidencePolicy = applyEvidencePolicy(rawAnswer, evidenceBundle, citationReport, {
+    strict: strictEvidence,
+    refuseEmpty,
+  });
+  rawAnswer = evidencePolicy.answer;
+  citationReport = validateCitations(rawAnswer, evidenceBundle);
 
   const profile: AnswerProfile =
     input.surface === "mcp" ? input.cfg.answerProfiles.mcp : input.cfg.answerProfiles.agent;
@@ -74,7 +101,7 @@ export async function postProcessRunAnswer(input: PostProcessInput): Promise<Run
   }
 
   let answer = rawAnswer;
-  if (input.surface === "mcp" && input.summaryAgent) {
+  if (input.surface === "mcp" && input.summaryAgent && !shouldSkipMcpSummary(input.question)) {
     try {
       const summarized = await input.summaryAgent.summarize({
         question: input.question,
@@ -107,6 +134,8 @@ export async function postProcessRunAnswer(input: PostProcessInput): Promise<Run
     evidenceBundle,
     citationReport,
     retrievalPlanKind: classifyRetrievalPlan(input.question).kind,
+    finalAnswer: answer,
+    knowledgeCardId: input.knowledgeCardId,
   });
 
   return {
@@ -114,6 +143,7 @@ export async function postProcessRunAnswer(input: PostProcessInput): Promise<Run
     rawAnswer,
     evidenceBundle,
     citationReport,
+    evidencePolicy,
     telemetry,
   };
 }
@@ -143,7 +173,22 @@ export interface RunAskInput {
 }
 
 export async function finalizeRunAsk(input: RunAskInput): Promise<RunAskResult> {
-  const rawAnswer = await collectRawAnswer(input.loop, buildAskPrompt(input.question, input.repoScope));
+  const fastCard = tryKnowledgeFastPath(input.cfg, input.question, input.repoScope);
+  if (fastCard) {
+    return finalizeKnowledgeCardAnswer({
+      cfg: input.cfg,
+      question: input.question,
+      card: fastCard,
+      surface: input.surface,
+      telemetry: input.telemetry,
+      summaryAgent: input.summaryAgent,
+    });
+  }
+
+  const rawAnswer = await collectRawAnswer(
+    input.loop,
+    buildAskPrompt(input.question, input.repoScope, input.cfg),
+  );
   return postProcessRunAnswer({
     rawAnswer,
     evidence: input.evidence,
@@ -153,4 +198,85 @@ export async function finalizeRunAsk(input: RunAskInput): Promise<RunAskResult> 
     surface: input.surface,
     summaryAgent: input.summaryAgent,
   });
+}
+
+export interface FinalizeKnowledgeCardInput {
+  cfg: LlmWikiConfig;
+  question: string;
+  card: KnowledgeCard;
+  surface: "agent" | "mcp";
+  telemetry: RunTelemetry;
+  summaryAgent?: AnswerSummaryAgent;
+}
+
+/** Verified knowledge card with fresh evidence hashes — skip the tool loop. */
+export async function finalizeKnowledgeCardAnswer(
+  input: FinalizeKnowledgeCardInput,
+): Promise<RunAskResult> {
+  const evidenceBundle = evidenceBundleFromCard(
+    input.card,
+    input.telemetry.runId,
+    input.question,
+  );
+  let rawAnswer = input.card.answer.trim();
+  let citationReport = validateCitations(rawAnswer, evidenceBundle);
+
+  const strictEvidence = parseBool(process.env.LLM_WIKI_EVIDENCE_STRICT, true);
+  const refuseEmpty = parseBool(process.env.LLM_WIKI_EVIDENCE_REFUSE_EMPTY, true);
+  const evidencePolicy = applyEvidencePolicy(rawAnswer, evidenceBundle, citationReport, {
+    strict: strictEvidence,
+    refuseEmpty,
+  });
+  rawAnswer = evidencePolicy.answer;
+  citationReport = validateCitations(rawAnswer, evidenceBundle);
+
+  const profile: AnswerProfile =
+    input.surface === "mcp" ? input.cfg.answerProfiles.mcp : input.cfg.answerProfiles.agent;
+
+  let answer = rawAnswer;
+  if (input.surface === "mcp" && input.summaryAgent && !shouldSkipMcpSummary(input.question)) {
+    try {
+      const summarized = await input.summaryAgent.summarize({
+        question: input.question,
+        answer: rawAnswer,
+      });
+      answer = summarized.trim() || rawAnswer;
+    } catch (err) {
+      console.warn(
+        `[llm-wiki] answer summary agent failed; returning raw answer: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  const guarded = applyAnswerProfile(answer, profile);
+  maybeRecordSecurityAudit(
+    createSecurityAuditLogger(`${input.cfg.projectRoot}/.reasonix/security-audit.jsonl`),
+    {
+      surface: "answer",
+      ...guarded.audit,
+    },
+  );
+  answer = guarded.text;
+
+  const telemetry = input.telemetry.finalize({
+    question: input.question,
+    surface: input.surface,
+    answerProfile: profile,
+    evidenceBundle,
+    citationReport,
+    retrievalPlanKind: classifyRetrievalPlan(input.question).kind,
+    finalAnswer: answer,
+    knowledgeCardId: input.card.id,
+  });
+
+  return {
+    answer,
+    rawAnswer,
+    evidenceBundle,
+    citationReport,
+    evidencePolicy,
+    telemetry,
+  };
 }

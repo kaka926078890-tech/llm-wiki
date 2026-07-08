@@ -7,7 +7,7 @@ import { buildAssistantMessage } from "./messages.js";
 import { stripHallucinatedToolMarkup } from "./thinking.js";
 import type { LoopEvent } from "./types.js";
 
-export type ForceSummaryReason = "aborted" | "context-guard" | "stuck";
+export type ForceSummaryReason = "aborted" | "context-guard" | "stuck" | "budget";
 
 export interface ForceSummaryContext {
   client: DeepSeekClient;
@@ -64,7 +64,7 @@ export async function* forceSummaryAfterIterLimit(
       stats: summaryStats,
       forcedSummary: true,
     };
-    yield { turn: ctx.turn, role: "done", content: summary };
+    yield { turn: ctx.turn, role: "done", content: "" };
   } catch (err) {
     const label = errorLabelFor(opts.reason);
     const message = t("summary.failedAfterReason", { label, message: (err as Error).message });

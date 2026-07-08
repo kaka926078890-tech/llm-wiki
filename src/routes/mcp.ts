@@ -14,9 +14,11 @@ import {
 } from "../answer-summary-agent.js";
 import type { CacheFirstLoop } from "../loop-runner.js";
 import { buildLoopBundle } from "../loop-runner.js";
-import { finalizeRunAsk } from "../finalize-run.js";
-import { augmentQuestionWithRetrievalPlan } from "../retrieval/plan.js";
+import { finalizeRunAsk, buildAskPrompt } from "../finalize-run.js";
 import type { BuildLoopBundleFn } from "./ask.js";
+import { tryKnowledgeFastPath } from "../core/knowledge/fast-path.js";
+import { finalizeKnowledgeCardAnswer } from "../finalize-run.js";
+import { RunTelemetry, loadRunTelemetryOptions } from "../telemetry/run-telemetry.js";
 
 const MCP_PROTOCOL_VERSION = "2025-03-26";
 const SERVER_NAME = "llm-wiki";
@@ -183,11 +185,7 @@ export async function runAskTool(
   }
 
   const answerParts: string[] = [];
-  const promptParts = [
-    args.repo_scope && args.repo_scope !== "all" ? `[repo_scope: ${args.repo_scope}]` : null,
-    augmentQuestionWithRetrievalPlan(args.question),
-  ].filter((part): part is string => Boolean(part));
-  const question = promptParts.join("\n\n");
+  const question = buildAskPrompt(args.question, args.repo_scope, cfg);
 
   for await (const ev of loop.step(question)) {
     if (ev.role === "assistant_delta" || ev.role === "assistant_final") {
@@ -306,6 +304,19 @@ export async function registerMcpRoutes(
 
         const args = parseAskArgs(params.arguments);
         const answerFn = async () => {
+          const fastCard = tryKnowledgeFastPath(cfg, args.question, args.repo_scope);
+          if (fastCard) {
+            const telemetry = new RunTelemetry(loadRunTelemetryOptions(cfg.projectRoot), randomUUID());
+            const result = await finalizeKnowledgeCardAnswer({
+              cfg,
+              question: args.question,
+              card: fastCard,
+              surface: "mcp",
+              telemetry,
+              summaryAgent: await buildAnswerSummaryAgentFn(cfg),
+            });
+            return result.answer;
+          }
           const bundle = await buildLoopBundleFn(cfg, args.question);
           const summaryAgent = await buildAnswerSummaryAgentFn(cfg);
           return runAskTool(bundle.loop, summaryAgent, args, cfg, {

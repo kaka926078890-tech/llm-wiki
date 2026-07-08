@@ -119,15 +119,19 @@ function formatUpstream5xx(status: string, baseUrl: string): string {
   return `${head}${action}`;
 }
 
-export function reasonPrefixFor(reason: "aborted" | "context-guard" | "stuck"): string {
+export function reasonPrefixFor(
+  reason: "aborted" | "context-guard" | "stuck" | "budget",
+): string {
   if (reason === "aborted") return t("errors.reasonAborted");
   if (reason === "context-guard") return t("errors.reasonContextGuard");
+  if (reason === "budget") return t("errors.reasonBudget");
   return t("errors.reasonStuck");
 }
 
-export function errorLabelFor(reason: "aborted" | "context-guard" | "stuck"): string {
+export function errorLabelFor(reason: "aborted" | "context-guard" | "stuck" | "budget"): string {
   if (reason === "aborted") return t("errors.labelAborted");
   if (reason === "context-guard") return t("errors.labelContextGuard");
+  if (reason === "budget") return t("errors.labelBudget");
   return t("errors.labelStuck");
 }
 

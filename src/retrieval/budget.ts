@@ -140,15 +140,48 @@ export class RetrievalBudget {
   private total = 0;
   private readonly perTool = new Map<string, number>();
   private readonly seen = new Set<string>();
+  private readonly exhaustedTools = new Set<string>();
   private emptyStreak = 0;
+  private totalExhausted = false;
+  private budgetBlockStreak = 0;
 
   constructor(private readonly opts: RetrievalBudgetOptions) {}
+
+  /** True after the total call cap is hit — loop should stop requesting more tools. */
+  isTotalExhausted(): boolean {
+    return this.totalExhausted;
+  }
+
+  /** True when recent budget blocks suggest the model should stop calling tools. */
+  shouldStopRetrieval(): boolean {
+    return this.totalExhausted || this.budgetBlockStreak >= 2;
+  }
+
+  /** Hide tool from model tool list once its per-tool cap is hit. */
+  isToolExhausted(name: string): boolean {
+    if (this.exhaustedTools.has(name)) return true;
+    const cap = this.opts.perToolMax?.[name] ?? DEFAULT_PER_TOOL[name];
+    const used = this.perTool.get(name) ?? 0;
+    return cap != null && used >= cap;
+  }
+
+  private noteBudgetBlock(name: string, kind: string): string {
+    if (kind === "per-tool") this.exhaustedTools.add(name);
+    if (kind === "total") this.totalExhausted = true;
+    this.budgetBlockStreak += 1;
+    return kind;
+  }
+
+  private noteAllowedCall(): void {
+    this.budgetBlockStreak = 0;
+  }
 
   reset(): void {
     this.total = 0;
     this.perTool.clear();
     this.seen.clear();
     this.emptyStreak = 0;
+    this.totalExhausted = false;
   }
 
   beforeCall(name: string, args: Record<string, unknown>): string | null {
@@ -156,6 +189,7 @@ export class RetrievalBudget {
 
     const fp = `${name}:${fingerprintArgs(args)}`;
     if (this.seen.has(fp)) {
+      this.noteBudgetBlock(name, "duplicate");
       return JSON.stringify({
         error: `${name}: duplicate call skipped (same arguments already ran this turn). Try a different tool or query.`,
         budget: "duplicate",
@@ -163,6 +197,7 @@ export class RetrievalBudget {
     }
 
     if (this.total >= (this.opts.totalMax ?? 14)) {
+      this.noteBudgetBlock(name, "total");
       return JSON.stringify({
         error: `Tool budget exhausted (${this.opts.totalMax} calls). Answer from evidence already collected.`,
         budget: "total",
@@ -172,6 +207,7 @@ export class RetrievalBudget {
     const cap = this.opts.perToolMax?.[name] ?? DEFAULT_PER_TOOL[name];
     const used = this.perTool.get(name) ?? 0;
     if (cap != null && used >= cap) {
+      this.noteBudgetBlock(name, "per-tool");
       return JSON.stringify({
         error: `${name}: per-tool limit reached (${cap}). Switch tool or conclude.`,
         budget: "per-tool",
@@ -182,6 +218,7 @@ export class RetrievalBudget {
       SEARCH_TOOLS.has(name)
       && this.emptyStreak >= (this.opts.emptyStreakStop ?? 3)
     ) {
+      this.noteBudgetBlock(name, "empty-streak");
       return JSON.stringify({
         error:
           `Search tools paused after ${this.emptyStreak} consecutive empty results. `
@@ -190,6 +227,7 @@ export class RetrievalBudget {
       });
     }
 
+    this.noteAllowedCall();
     this.seen.add(fp);
     this.total += 1;
     this.perTool.set(name, used + 1);

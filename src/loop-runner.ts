@@ -131,6 +131,8 @@ export async function buildLoopBundle(
     model: cfg.deepseekModel,
     stream: false,
     maxIterPerTurn: 10,
+    retrievalStopCheck: () => budget.shouldStopRetrieval(),
+    retrievalToolAllowed: (name) => !budget.isToolExhausted(name),
   });
 
   return { loop, evidence, telemetry };
