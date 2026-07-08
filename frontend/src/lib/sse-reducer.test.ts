@@ -129,6 +129,56 @@ describe("sse-reducer", () => {
     expect(text.text).toContain("evidence: 372 item(s)");
   });
 
+  it("P4-RED-09 done-only event merges final answer text", () => {
+    let state = createAssistantState();
+    state = reduceLoopEvent(state, {
+      turn: 1,
+      role: "tool_start",
+      content: "",
+      toolName: "glob",
+      callId: "c1",
+    });
+    state = reduceLoopEvent(state, {
+      turn: 1,
+      role: "done",
+      content: "## Final answer\n\nOnly on done.",
+    });
+    expect(state.segments).toEqual([
+      expect.objectContaining({ kind: "tool", callId: "c1" }),
+      { kind: "text", text: "## Final answer\n\nOnly on done." },
+    ]);
+    expect(state.pending).toBe(false);
+  });
+
+  it("P4-RED-10 tool ok stays true when result mentions budget in prose", () => {
+    let state = createAssistantState();
+    state = reduceLoopEvent(state, {
+      turn: 1,
+      role: "tool",
+      content: "The retrieval budget for listing questions is 26 tool calls.",
+      toolName: "read_file",
+      callId: "c1",
+    });
+    const tool = state.segments[0];
+    expect(tool).toMatchObject({ kind: "tool", ok: true });
+  });
+
+  it("P4-RED-11 tool ok is false for structured budget error JSON", () => {
+    let state = createAssistantState();
+    state = reduceLoopEvent(state, {
+      turn: 1,
+      role: "tool",
+      content: JSON.stringify({
+        error: "read_file: per-tool limit reached (9). Switch tool or conclude.",
+        budget: "per-tool",
+      }),
+      toolName: "read_file",
+      callId: "c1",
+    });
+    const tool = state.segments[0];
+    expect(tool).toMatchObject({ kind: "tool", ok: false });
+  });
+
   it("P4-RED-08 done event does not duplicate force-summary answer", () => {
     let state = createAssistantState();
     const body = "## chatkit-web 详细功能清单\n\n" + "x".repeat(200);

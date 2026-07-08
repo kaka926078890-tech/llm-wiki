@@ -56,6 +56,24 @@ function upsertToolSegment(
   ];
 }
 
+/** Budget/router blocks return JSON like `{"error":"…","budget":"per-tool"}` — not prose mentions of budget. */
+function isToolResultError(content: string): boolean {
+  const trimmed = content.trim();
+  if (/^error\b/i.test(trimmed)) return true;
+  if (!trimmed.startsWith("{")) return false;
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return (
+      typeof parsed === "object"
+      && parsed !== null
+      && "error" in parsed
+      && typeof (parsed as { error: unknown }).error === "string"
+    );
+  } catch {
+    return false;
+  }
+}
+
 function mergeFinalText(lastText: string, newText: string): string {
   if (lastText === newText) return lastText;
   if (lastText.includes(newText)) return lastText;
@@ -88,7 +106,7 @@ export function reduceLoopEvent(
     case "done": {
       let segments = state.segments;
       const text = ev.content?.trim();
-      if (text && ev.role !== "done") {
+      if (text) {
         const last = segments[segments.length - 1];
         if (last?.kind === "text") {
           segments = [
@@ -98,8 +116,6 @@ export function reduceLoopEvent(
         } else {
           segments = [...segments, { kind: "text", text }];
         }
-      } else if (text && ev.role === "done") {
-        // ponytail: done content duplicates force-summary assistant_final — only flip pending
       }
       return { segments, pending: false, evidenceMeta: state.evidenceMeta };
     }
@@ -117,9 +133,7 @@ export function reduceLoopEvent(
     }
     case "tool": {
       const callId = ev.callId ?? `tool-${state.segments.length}`;
-      const ok =
-        !/^error\b/i.test(ev.content.trim())
-        && !/"budget"\s*:/.test(ev.content);
+      const ok = !isToolResultError(ev.content);
       return {
         ...state,
         segments: upsertToolSegment(state.segments, {

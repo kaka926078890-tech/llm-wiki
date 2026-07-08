@@ -1,3 +1,10 @@
+export function pickMcpRunForQuestion(
+  runs: Array<{ runId: string; question: string; surface: string }>,
+  question: string,
+): { runId: string; question: string; surface: string } | undefined {
+  return runs.find((entry) => entry.surface === "mcp" && entry.question === question);
+}
+
 /** Fetch evidence from the latest MCP run for the same user question. */
 export async function fetchMcpRunEvidence(question: string): Promise<{
   runId: string;
@@ -15,9 +22,7 @@ export async function fetchMcpRunEvidence(question: string): Promise<{
     const { runs } = (await runsRes.json()) as {
       runs: Array<{ runId: string; question: string; surface: string }>;
     };
-    const run =
-      runs.find((entry) => entry.surface === "mcp" && entry.question === question)
-      ?? runs.find((entry) => entry.surface === "mcp");
+    const run = pickMcpRunForQuestion(runs, question);
     if (!run) return null;
 
     const detailRes = await fetch(`/api/runs/${encodeURIComponent(run.runId)}`);
