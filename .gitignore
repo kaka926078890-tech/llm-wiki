@@ -6,6 +6,9 @@ dist/
 .reasonix/runs/
 .reasonix/security-audit.jsonl
 .reasonix/cbm-index-state.json
+.reasonix/catalog-drift.jsonl
+.reasonix/feature-lists/
+.reasonix/knowledge-cards.jsonl
 .reasonix-test-runs/
 benchmarks/reports/
 code/.codegraph/
