@@ -1,0 +1,14 @@
+{
+  "repo": "chatkit-web",
+  "listKind": "apps",
+  "names": [
+    "chatkit-admin-mt",
+    "chatkit-mobile",
+    "finclaw-frontend"
+  ],
+  "ids": [
+    "app:chatkit-admin-mt",
+    "app:chatkit-mobile",
+    "app:finclaw-frontend"
+  ]
+}

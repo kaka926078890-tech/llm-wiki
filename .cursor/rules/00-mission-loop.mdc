@@ -1,0 +1,56 @@
+---
+description: >
+  llm-wiki-mission-loop — always active. North-star for Reasonix-style Q&A over
+  three code repos. Worker loops produce evidence; only mission declares done.
+alwaysApply: true
+---
+
+# LLM Wiki Mission Loop
+
+## Product goal
+
+LLM Wiki is a Reasonix-style agent that answers questions about chatkit-web,
+chatkit-middleware, and finclaw using read-only tools. Answers must be
+evidence-grounded; MCP public surfaces must stay sanitized.
+
+## Session discipline
+
+1. Read goal, relevant source, docs, and **actual test/benchmark output** before editing.
+2. State one specific hypothesis.
+3. Make the smallest change.
+4. Run acceptance commands from active worker loops; read output.
+5. Iterate from evidence (max **3** attempts per same failure).
+6. Emit the stop signal block below.
+
+## Mission acceptance dimensions
+
+All four must be satisfied before `STOP_SIGNAL: done`:
+
+| Dimension | Satisfied when |
+|-----------|----------------|
+| Answer safety & evidence | No unsourced claims in MCP paths; security harness tests pass or blocker recorded |
+| Catalog & listing truth | Generated feature lists match catalog rules; listing path never invents out-of-table items |
+| Multi-repo sync integrity | `sync:code` / `catalog:gen` paths coherent; three repo roots reachable |
+| Verification gates | Phase gates G0–G3 in `state/phase.md` match doc 15 evidence, or named blocker |
+
+## Required stop signal
+
+```text
+LOOP: <loop-id>
+GOAL_ADVANCED: yes | no | partial
+COMMANDS_RUN: <comma-separated>
+FILES_CHANGED: <comma-separated>
+TESTS_PASSED: <comma-separated or none>
+TESTS_FAILED: <comma-separated or none>
+MISSION_DIMENSIONS_AFFECTED: <comma-separated>
+STOP_SIGNAL: done | blocked-needs-platform | blocked-needs-credential | blocked-ambiguous-contract | blocked-repeated-failure | blocked-needs-human
+BLOCKER_DETAIL: <one sentence if blocked, else n/a>
+```
+
+## Rules
+
+- Never emit `done` if required checks failed without a named blocker.
+- Never edit a file not read in this session.
+- After three failed attempts → `blocked-repeated-failure`.
+- E0/E1 needing `DEEPSEEK_API_KEY` without key → inbox, not fake PASS.
+- Never auto-merge to main; PRs for human review only.

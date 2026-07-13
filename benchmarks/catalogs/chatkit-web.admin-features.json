@@ -1,0 +1,34 @@
+{
+  "repo": "chatkit-web",
+  "listKind": "admin-features",
+  "names": [
+    "渠道",
+    "域名白名单",
+    "执行策略",
+    "执行日志",
+    "LLM 配置",
+    "工具策略",
+    "Token 用量",
+    "租户用户",
+    "平台设置",
+    "平台技能市场",
+    "平台用户",
+    "技能市场",
+    "角色模板"
+  ],
+  "ids": [
+    "route:admin:/admin/channels",
+    "route:admin:/admin/domain-allowlist",
+    "route:admin:/admin/exec-policy",
+    "route:admin:/admin/execution-logs",
+    "route:admin:/admin/llm",
+    "route:admin:/admin/tool-invocation-policy",
+    "route:admin:/admin/usage",
+    "route:admin:/admin/users",
+    "route:admin:/platform/settings",
+    "route:admin:/platform/skills",
+    "route:admin:/platform/users",
+    "route:admin:/shared/skills",
+    "route:admin:/shared/templates"
+  ]
+}

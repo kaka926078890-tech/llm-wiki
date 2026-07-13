@@ -1,0 +1,63 @@
+# Catalog refactor loop — test gate + state artifact upload.
+# Full agent triage runs in Cursor with loop-triage skill (needs DEEPSEEK_API_KEY for E0/E1).
+# See docs/refactor-mcp/loop-runbook.zh.md
+
+name: Loop Triage (Catalog)
+
+on:
+  schedule:
+    - cron: '0 6 * * 1-5'   # 06:00 UTC weekdays
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - 'src/catalog/**'
+      - 'scripts/catalog*'
+      - 'config/catalog-rules.yaml'
+      - 'benchmarks/**'
+      - 'tests/catalog*'
+      - '.cursor/skills/loop-triage/**'
+      - 'state/**'
+
+permissions:
+  contents: read
+
+jobs:
+  test-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Catalog extract tests (when present)
+        run: npm test -- tests/catalog-extract 2>/dev/null || echo "catalog-extract tests not yet added — skip"
+
+      - name: Upload state snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: loop-state-${{ github.run_id }}
+          path: |
+            state/triage.md
+            state/phase.md
+            inbox/
+          if-no-files-found: ignore
+          retention-days: 14

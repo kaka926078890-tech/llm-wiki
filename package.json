@@ -17,8 +17,10 @@
     "cbm:status": "codebase-memory-mcp cli list_projects '{}'",
     "cbm:setup": "npm run sync:code && npm run cbm:init",
     "verify:upgrade": "tsx scripts/verify-upgrade.ts",
+    "verify:listing": "tsx scripts/verify-listing.ts",
+    "catalog:gen": "tsx scripts/catalog-gen.ts",
     "sync:code": "node scripts/sync-code-repos.mjs",
-    "sync:code:full": "node scripts/sync-code-repos.mjs --cbm-sync",
+    "sync:code:full": "node scripts/sync-code-repos.mjs --cbm-sync --catalog-gen",
     "typecheck": "tsc --noEmit",
     "postinstall": "node scripts/copy-tree-sitter-grammars.mjs"
   },

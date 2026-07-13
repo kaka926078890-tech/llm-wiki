@@ -1,0 +1,44 @@
+---
+description: >
+  mcp-runtime-loop — MCP routes, ask flow, security sanitizer, loop runner.
+globs:
+  - "src/routes/**"
+  - "src/core/**"
+  - "src/loop-runner.ts"
+  - "src/sse/**"
+  - "tests/*mcp*"
+  - "tests/*loop*"
+alwaysApply: false
+---
+
+# Worker Loop: mcp-runtime-loop
+
+Parent: `llm-wiki-mission-loop`
+
+## Goal
+
+Preserve MCP/ask runtime, SSE loop events, and public answer safety.
+
+## Read before touching code
+
+1. `README.md` (answer profiles, security)
+2. `.cursor/skills/llm-wiki-upgrade-verify/SKILL.md`
+3. Affected route and core modules
+
+## Iterate
+
+1. State which MCP or ask invariant is at risk.
+2. Make the smallest change.
+3. Verify:
+
+```bash
+npm run typecheck
+npm test
+```
+
+4. Security/MCP sanitizer or `.env` shape changes → inbox before merge.
+
+## Stop signals
+
+Use `blocked-needs-human` for public sanitizer policy changes.
+Use `done` when typecheck + relevant tests pass.

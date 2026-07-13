@@ -156,6 +156,16 @@ export class EvidenceCollector {
     }
   }
 
+  /** Offline feature-list read counts as verified catalog evidence. */
+  recordCatalogList(repo: string): void {
+    this.items.push({
+      id: evidenceId(),
+      tool: "catalog_list",
+      repo,
+      redaction: "metadata_only",
+    });
+  }
+
   toBundle(): EvidenceBundle {
     return {
       runId: this.runId,

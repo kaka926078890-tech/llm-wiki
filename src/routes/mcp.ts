@@ -16,8 +16,6 @@ import type { CacheFirstLoop } from "../loop-runner.js";
 import { buildLoopBundle } from "../loop-runner.js";
 import { finalizeRunAsk, buildAskPrompt } from "../finalize-run.js";
 import type { BuildLoopBundleFn } from "./ask.js";
-import { tryKnowledgeFastPath } from "../core/knowledge/fast-path.js";
-import { finalizeKnowledgeCardAnswer } from "../finalize-run.js";
 import { RunTelemetry, loadRunTelemetryOptions } from "../telemetry/run-telemetry.js";
 
 const MCP_PROTOCOL_VERSION = "2025-03-26";
@@ -304,25 +302,19 @@ export async function registerMcpRoutes(
 
         const args = parseAskArgs(params.arguments);
         const answerFn = async () => {
-          const fastCard = tryKnowledgeFastPath(cfg, args.question, args.repo_scope);
-          if (fastCard) {
-            const telemetry = new RunTelemetry(loadRunTelemetryOptions(cfg.projectRoot), randomUUID());
-            const result = await finalizeKnowledgeCardAnswer({
-              cfg,
-              question: args.question,
-              card: fastCard,
-              surface: "mcp",
-              telemetry,
-              summaryAgent: await buildAnswerSummaryAgentFn(cfg),
-            });
-            return result.answer;
-          }
           const bundle = await buildLoopBundleFn(cfg, args.question);
           const summaryAgent = await buildAnswerSummaryAgentFn(cfg);
-          return runAskTool(bundle.loop, summaryAgent, args, cfg, {
+          const result = await finalizeRunAsk({
+            loop: bundle.loop,
             evidence: bundle.evidence,
             telemetry: bundle.telemetry,
+            cfg,
+            question: args.question,
+            repoScope: args.repo_scope,
+            surface: "mcp",
+            summaryAgent,
           });
+          return result.answer;
         };
         if (acceptsEventStream(request.headers)) {
           reply.hijack();

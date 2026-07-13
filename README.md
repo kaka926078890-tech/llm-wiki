@@ -73,13 +73,15 @@ cd frontend && npm install && cd ..
 | `npm run dev:mcp-debug` | 同时启动前后端，只打印 MCP 请求调试日志 |
 | `npm run dev:server:debug` | 只启动后端，并打印 MCP、tool、security 调试日志 |
 | `npm run sync:code` | clone/pull `code/` 下的三个并行代码仓库 |
-| `npm run sync:code:full` | `sync:code` + `cbm:sync`（拉代码后自动重索引） |
+| `npm run sync:code:full` | `sync:code` + `catalog:gen` + `cbm:sync`（拉代码后生成功能清单 JSON 并重索引） |
+| `npm run catalog:gen` | 从三仓离线抽取功能清单 → `.reasonix/feature-lists/*.json` |
+| `npm run verify:listing` | 清单题 E0/E1 对比（`--baseline` / `--candidate --runs 3`；candidate 需 `LLM_WIKI_CATALOG_LISTING=true`） |
 | `npm run cbm:setup` | `sync:code` + `cbm:init` 一键启用 codebase-memory-mcp 索引 |
 | `npm run cbm:init` | 为三个 repo 建立 CBM 知识图谱索引（首次） |
 | `npm run cbm:sync` | 代码变更后重新索引三个 repo |
 | `npm run cbm:status` | 查看 CBM 已索引项目列表 |
 | `npm run verify:upgrade` | Golden 题集升级验证（需 `DEEPSEEK_API_KEY`）；`--quick` 冒烟 3 题 |
-| `npm test` | 后端 vitest（根目录 `tests/`，98 条用例） |
+| `npm test` | 后端 vitest（根目录 `tests/`，135 条用例） |
 | `npm run build` | 构建前端 `frontend/dist` 并编译后端 TypeScript |
 
 前端单独测试与构建：
@@ -106,6 +108,8 @@ cd frontend && npm test && npm run build
 |------|----------|--------------|
 | Agent Stream (`/agent/run`) | `LLM_WIKI_AGENT_ANSWER_PROFILE` | `debug` |
 | MCP (`/mcp`) | `LLM_WIKI_MCP_ANSWER_PROFILE` | `public` |
+
+清单类问题（微服务/应用/模块/CLI 列表）在 `LLM_WIKI_CATALOG_LISTING=true` 时走离线 JSON 读表短路径，不经过 Agent 发明条目；需先 `npm run sync:code:full` 生成 `.reasonix/feature-lists/`。
 
 临时切换 MCP 为内部研发模式：
 

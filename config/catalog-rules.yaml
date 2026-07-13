@@ -1,0 +1,30 @@
+# Catalog scope rules (Codex all-A baseline). See docs/refactor-mcp/16-decision-scope-all-A.zh.md
+
+middleware:
+  microservice_list:
+    source: edition-manifest.services
+    editions: merge_basic_and_advance
+    exclude_kinds: [infrastructure]
+  default_feature_list: services
+
+chatkit-web:
+  app_list:
+    source: package.json.workspaces
+    libraries_in_app_list: false
+  admin_feature_list:
+    source: [routes, i18n_zh]
+    exclude_paths: [/login, /]
+  incomplete_docs_disclaimer: true
+
+finclaw:
+  module_list:
+    source: cargo_crates
+    exclude_vendor: true
+  cli_feature_list:
+    source: clap_subcommands
+  microservice_question: redirect_to_modules_cli
+
+shared:
+  public_show_paths: false
+  missing_list_behavior: refuse_sync_hint
+  allow_extra_items: false

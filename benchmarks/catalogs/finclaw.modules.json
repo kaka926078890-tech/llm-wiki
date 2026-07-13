@@ -1,0 +1,32 @@
+{
+  "repo": "finclaw",
+  "listKind": "modules",
+  "names": [
+    "a2a-core",
+    "agent-loop",
+    "claw",
+    "core",
+    "cron",
+    "finsafe-exec",
+    "host-services",
+    "isolation",
+    "memory",
+    "providers",
+    "tools",
+    "worker-pool"
+  ],
+  "ids": [
+    "crate:a2a-core",
+    "crate:agent-loop",
+    "crate:claw",
+    "crate:core",
+    "crate:cron",
+    "crate:finsafe-exec",
+    "crate:host-services",
+    "crate:isolation",
+    "crate:memory",
+    "crate:providers",
+    "crate:tools",
+    "crate:worker-pool"
+  ]
+}

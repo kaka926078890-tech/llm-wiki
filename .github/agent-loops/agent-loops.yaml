@@ -1,0 +1,81 @@
+# Code-generation loop descriptors for llm-wiki.
+# Source of truth for scripts/dev/loop-dispatcher.sh and .cursor/rules/*.mdc
+
+version: 1
+
+mission_loop: llm-wiki-mission-loop
+
+loops:
+  - id: llm-wiki-mission-loop
+    parent: null
+    rule: .cursor/rules/00-mission-loop.mdc
+    goal: >
+      Reasonix-style Q&A over chatkit-web, chatkit-middleware, and finclaw
+      with evidence-grounded answers and catalog listing gates.
+    matching_conditions:
+      always: true
+    acceptance_criteria:
+      dimensions:
+        - answer-safety-evidence
+        - catalog-listing-truth
+        - multi-repo-sync
+        - verification-gates
+
+  - id: catalog-loop
+    parent: llm-wiki-mission-loop
+    rule: .cursor/rules/10-catalog-loop.mdc
+    goal: Catalog generation and listing read-path per docs 14–16.
+    matching_conditions:
+      paths:
+        - src/catalog/**
+        - scripts/catalog*
+        - config/catalog-rules.yaml
+        - benchmarks/listing-questions.json
+        - tests/catalog*
+      labels:
+        - catalog
+    acceptance_criteria:
+      required:
+        - npm run typecheck
+        - npm test -- tests/catalog-extract
+        - npm run catalog:gen
+
+  - id: mcp-runtime-loop
+    parent: llm-wiki-mission-loop
+    rule: .cursor/rules/11-mcp-runtime-loop.mdc
+    goal: MCP/ask runtime and public answer safety.
+    matching_conditions:
+      paths:
+        - src/routes/**
+        - src/core/**
+        - src/loop-runner.ts
+        - src/sse/**
+      labels:
+        - mcp
+    acceptance_criteria:
+      required:
+        - npm run typecheck
+        - npm test
+
+  - id: benchmark-loop
+    parent: llm-wiki-mission-loop
+    rule: .cursor/rules/12-benchmark-loop.mdc
+    goal: E0/E1 and upgrade verification gates.
+    matching_conditions:
+      paths:
+        - benchmarks/**
+        - scripts/verify-listing.ts
+      labels:
+        - benchmark
+    acceptance_criteria:
+      required:
+        - npm run typecheck
+        - npm test
+
+stop_signals:
+  done: Acceptance criteria satisfied and evidence recorded.
+  blocked-needs-platform: Required host or environment unavailable.
+  blocked-needs-credential: DEEPSEEK_API_KEY or live MCP required and unavailable.
+  blocked-ambiguous-contract: Product or security intent unclear.
+  blocked-repeated-failure: Same failure after three attempts.
+  blocked-needs-human: Maintainer decision required — use inbox.

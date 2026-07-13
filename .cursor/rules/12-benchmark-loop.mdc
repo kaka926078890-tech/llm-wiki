@@ -1,0 +1,42 @@
+---
+description: >
+  benchmark-loop — listing verification, upgrade verify, benchmark reports.
+globs:
+  - "benchmarks/**"
+  - "scripts/verify-listing.ts"
+  - "scripts/verify-upgrade*"
+alwaysApply: false
+---
+
+# Worker Loop: benchmark-loop
+
+Parent: `llm-wiki-mission-loop`
+
+## Goal
+
+Keep E0/E1 and upgrade verification reproducible and gate-aligned.
+
+## Read before touching code
+
+1. `docs/refactor-mcp/15-verification-plan.zh.md`
+2. Latest reports under `benchmarks/reports/`
+3. `benchmarks/listing-questions.json`
+
+## Iterate
+
+1. State which metric or gate (G0–G3) is at risk.
+2. Make the smallest change.
+3. Verify:
+
+```bash
+npm run typecheck
+npm test
+npm run verify:listing -- --baseline --runs 1
+```
+
+4. Full E0/E1 (runs=3) requires `DEEPSEEK_API_KEY` → inbox if missing.
+
+## Stop signals
+
+Use `blocked-needs-credential` without API key.
+Use `done` when scripted checks pass and report paths recorded in `state/phase.md`.

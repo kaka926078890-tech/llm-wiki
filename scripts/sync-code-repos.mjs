@@ -60,6 +60,23 @@ const autoSync =
   process.argv.includes("--cbm-sync") ||
   ["1", "true", "yes"].includes((process.env.LLM_WIKI_CBM_AUTO_SYNC ?? "").trim().toLowerCase());
 
+const catalogGen =
+  process.argv.includes("--catalog-gen") ||
+  autoSync ||
+  ["1", "true", "yes"].includes((process.env.LLM_WIKI_CATALOG_AUTO_GEN ?? "").trim().toLowerCase());
+
+if (catalogGen) {
+  console.log("\n[sync:code] catalog:gen (feature lists)…");
+  const tsxBin = path.join(projectRoot, "node_modules", ".bin", "tsx");
+  const result = spawnSync(tsxBin, [path.join(projectRoot, "scripts", "catalog-gen.ts")], {
+    cwd: projectRoot,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
 if (autoSync) {
   console.log("\n[sync:code] CBM re-index (auto)…");
   const result = spawnSync(process.execPath, [path.join(projectRoot, "scripts", "cbm-sync.mjs")], {

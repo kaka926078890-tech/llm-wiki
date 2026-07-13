@@ -1,0 +1,45 @@
+---
+description: >
+  catalog-loop — feature-list extraction, catalog rules, listing read-path.
+globs:
+  - "src/catalog/**"
+  - "scripts/catalog*"
+  - "config/catalog-rules.yaml"
+  - "benchmarks/listing-questions.json"
+  - "tests/catalog*"
+alwaysApply: false
+---
+
+# Worker Loop: catalog-loop
+
+Parent: `llm-wiki-mission-loop`
+
+## Goal
+
+Keep offline catalog generation and listing short-path aligned with docs 14–16.
+
+## Read before touching code
+
+1. `docs/refactor-mcp/14-implementation-plan.zh.md`
+2. `docs/refactor-mcp/15-verification-plan.zh.md`
+3. `docs/refactor-mcp/16-decision-scope-all-A.zh.md`
+4. `state/phase.md`
+
+## Iterate
+
+1. State which phase gate (G0–G3) or catalog invariant is at risk.
+2. Make the smallest change; one primary variable per PR.
+3. Verify:
+
+```bash
+npm run typecheck
+npm test -- tests/catalog-extract
+npm run catalog:gen
+```
+
+4. When listing path changes: run `npm run verify:listing` if `DEEPSEEK_API_KEY` available; else inbox.
+
+## Stop signals
+
+Use `blocked-needs-credential` when E0/E1 requires API key unavailable.
+Use `done` when gate commands for the touched phase pass.

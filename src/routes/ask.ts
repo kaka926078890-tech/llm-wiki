@@ -9,6 +9,12 @@ import {
   finalizeKnowledgeCardAnswer,
 } from "../finalize-run.js";
 import { tryKnowledgeFastPath } from "../core/knowledge/fast-path.js";
+import {
+  buildCatalogListingAnswer,
+  isCatalogListingEnabled,
+} from "../catalog/listing-path.js";
+import { detectCatalogIntent } from "../catalog/intent.js";
+import { EvidenceCollector } from "../core/evidence/index.js";
 import { formatEvidenceFooter } from "../core/evidence/index.js";
 import { mapLoopEventToSse } from "../sse/map-loop-event.js";
 import { RunTelemetry, loadRunTelemetryOptions } from "../telemetry/run-telemetry.js";
@@ -68,6 +74,61 @@ export async function registerAskRoutes(
     }
 
     const runId = randomUUID();
+
+    if (isCatalogListingEnabled()) {
+      const catalogAnswer = buildCatalogListingAnswer({
+        cfg,
+        question: rawQuestion,
+        profile: cfg.answerProfiles.agent,
+      });
+      if (catalogAnswer !== null) {
+        const telemetry = new RunTelemetry(loadRunTelemetryOptions(cfg.projectRoot), runId);
+        const evidence = new EvidenceCollector(runId, rawQuestion);
+        reply.hijack();
+        reply.raw.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          Connection: "keep-alive",
+          "Access-Control-Allow-Origin": "*",
+        });
+        try {
+          const intent = detectCatalogIntent(rawQuestion);
+          if (intent) evidence.recordCatalogList(intent.repo);
+          const processed = await postProcessRunAnswer({
+            rawAnswer: catalogAnswer,
+            evidence,
+            telemetry,
+            cfg,
+            question: rawQuestion,
+            surface: "agent",
+          });
+          reply.raw.write(
+            mapLoopEventToSse({
+              turn: 1,
+              role: "status",
+              content: "[Catalog listing fast path]",
+            }),
+          );
+          reply.raw.write(
+            mapLoopEventToSse({
+              turn: 1,
+              role: "assistant_final",
+              content: processed.answer,
+            }),
+          );
+          reply.raw.write(mapLoopEventToSse({ turn: 1, role: "done", content: "" }));
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          reply.raw.write(
+            mapLoopEventToSse({ turn: 0, role: "error", content: "", error: message }),
+          );
+        } finally {
+          if (!reply.raw.writableEnded) reply.raw.end();
+        }
+        return;
+      }
+    }
+
     const fastCard = tryKnowledgeFastPath(cfg, rawQuestion);
     if (fastCard) {
       const telemetry = new RunTelemetry(loadRunTelemetryOptions(cfg.projectRoot), runId);

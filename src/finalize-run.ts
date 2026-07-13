@@ -24,6 +24,11 @@ import {
 import type { KnowledgeCard } from "./core/knowledge/types.js";
 import { loadKnowledgeStore } from "./core/knowledge/store.js";
 import { RunTelemetry, type RunTelemetrySnapshot } from "./telemetry/run-telemetry.js";
+import {
+  buildCatalogListingAnswer,
+  isCatalogListingEnabled,
+} from "./catalog/listing-path.js";
+import { detectCatalogIntent } from "./catalog/intent.js";
 
 function parseBool(raw: string | undefined, fallback: boolean): boolean {
   const n = raw?.trim().toLowerCase();
@@ -173,6 +178,30 @@ export interface RunAskInput {
 }
 
 export async function finalizeRunAsk(input: RunAskInput): Promise<RunAskResult> {
+  if (isCatalogListingEnabled()) {
+    const profile: AnswerProfile =
+      input.surface === "mcp" ? input.cfg.answerProfiles.mcp : input.cfg.answerProfiles.agent;
+    const catalogAnswer = buildCatalogListingAnswer({
+      cfg: input.cfg,
+      question: input.question,
+      repoScope: input.repoScope,
+      profile,
+    });
+    if (catalogAnswer !== null) {
+      const intent = detectCatalogIntent(input.question, input.repoScope);
+      if (intent) input.evidence.recordCatalogList(intent.repo);
+      return postProcessRunAnswer({
+        rawAnswer: catalogAnswer,
+        evidence: input.evidence,
+        telemetry: input.telemetry,
+        cfg: input.cfg,
+        question: input.question,
+        surface: input.surface,
+        summaryAgent: input.summaryAgent,
+      });
+    }
+  }
+
   const fastCard = tryKnowledgeFastPath(input.cfg, input.question, input.repoScope);
   if (fastCard) {
     return finalizeKnowledgeCardAnswer({

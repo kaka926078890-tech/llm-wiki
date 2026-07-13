@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "defaults": { "runs": 3 },
+  "questions": [
+    {
+      "id": "mw-services",
+      "repo": "chatkit-middleware",
+      "listKind": "services",
+      "question": "chatkit-middleware 有哪些微服务？"
+    },
+    {
+      "id": "mw-features",
+      "repo": "chatkit-middleware",
+      "listKind": "services",
+      "question": "chatkit-middleware 功能清单"
+    },
+    {
+      "id": "web-apps",
+      "repo": "chatkit-web",
+      "listKind": "apps",
+      "question": "chatkit-web 有哪些应用？"
+    },
+    {
+      "id": "web-admin-features",
+      "repo": "chatkit-web",
+      "listKind": "admin-features",
+      "question": "chatkit-web 管理后台有哪些功能？"
+    },
+    {
+      "id": "fin-modules",
+      "repo": "finclaw",
+      "listKind": "modules",
+      "question": "finclaw 有哪些模块？"
+    },
+    {
+      "id": "fin-cli",
+      "repo": "finclaw",
+      "listKind": "cli",
+      "question": "finclaw CLI 有哪些能力？"
+    },
+    {
+      "id": "fin-not-ms",
+      "repo": "finclaw",
+      "listKind": "not-microservice",
+      "question": "finclaw 有哪些微服务？"
+    }
+  ]
+}
