@@ -107,7 +107,7 @@ Backlog 与 loop 状态见 [backlog-and-loop-status.zh.md](./backlog-and-loop-st
 |------|------|
 | JSONL 存储 | `.reasonix/knowledge-cards.jsonl` |
 | CRUD API | `GET/POST/PATCH/DELETE /api/knowledge` |
-| stale 检测 | `POST /api/knowledge/refresh-stale` + hash 比对 |
+| stale 检测 | `POST /api/knowledge/refresh-stale` + hash；**sync:full 自动 refresh**；fast path inline 校验 |
 | 检索 hint | prompt 注入相关卡片（非 fast path 时） |
 | fast path | verified + hash 新鲜 → 跳过 tool loop；命中时 `hitCount++` |
 | 去重合并 | 相似问法保存合并；`questionAliases` 记录别称 |
