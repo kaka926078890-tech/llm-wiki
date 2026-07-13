@@ -1,98 +1,78 @@
 ---
 name: loop-triage
 description: >
-  Three-phase dev-session loop for llm-wiki: triage backlog (state/triage.md) →
-  worktree implement → mandatory loop-reviewer. Active mission: N1 knowledge-stale-auto.
-  Catalog mission closed (regression only). Use fixed /loop trigger — not per-task prompts.
+  Three-phase dev-session loop for llm-wiki. Active mission: P2 graph-artifact.
+  Closed: N1 knowledge-stale, Catalog (regression only). Fixed /loop trigger.
 ---
 
 # Loop Triage — llm-wiki
 
-Writes findings to `./state/triage.md`. **Active mission:** N1 knowledge-stale-auto. **Closed:** catalog refactor (regression only).
+Writes findings to `./state/triage.md`. **Active mission:** P2 graph-artifact.
 
 ## Which plan to read
 
-Read `state/phase.md` first:
-
 | Mission | Plans | When |
 |---------|-------|------|
-| **N1 knowledge-stale-auto** (active) | `docs/knowledge-stale-auto/14-implementation-plan.zh.md`, `15-verification-plan.zh.md` | Default — all new work |
-| Catalog (closed) | `docs/refactor-mcp/14-15` | Only if `src/catalog/**` tests fail |
+| **P2 graph-artifact** (active) | `docs/p2-graph-artifact/14-15`, `loop-runbook.zh.md` | Default |
+| N1 knowledge-stale | `docs/knowledge-stale-auto/` | Closed — regression only |
+| Catalog | `docs/refactor-mcp/14-15` | Closed — `src/catalog/**` test failures only |
 
-Runbook: `docs/knowledge-stale-auto/loop-runbook.zh.md`
+Read `state/phase.md` first.
 
-## Read (Discovery inputs — N1)
+## Read (Discovery — P2)
 
-1. **Previous state** — `./state/triage.md` (skip duplicates with `open`/`fixing`)
-2. **Phase progress** — `./state/phase.md` (N1 phases 1–3, gates G1–G3):
-   - Phase 1: `src/core/knowledge/fast-path.ts` inline `checkCardStale`; `tests/knowledge-fast-path` FP-02
-   - Phase 2: `scripts/knowledge-refresh-stale.ts`, `npm run knowledge:refresh-stale`, sync hook in `sync-code-repos.mjs`
-   - Phase 3: README + `.env.example` + mission close in `state/phase.md`
-3. **CI / local test** — `npm run typecheck`, `npm test` (failures under `src/core/knowledge/**` → high)
-4. **Inbox** — `./inbox/`
-5. **Catalog regression** — if catalog tests red, add **one** regression finding; do not reopen Phase 0–4
+1. `./state/triage.md` — skip duplicates `open`/`fixing`
+2. `./state/phase.md` — phases 0–3, G0–G3
+3. Artifacts:
+   - G0: `src/graph/types.ts`, `store.ts`
+   - G1: `scripts/graph-gen.ts`, `.reasonix/graph.json`, `tests/graph-generate.test.ts`
+   - G2: `src/routes/graph.ts`, `tests/routes-graph.test.ts`
+   - G3: `frontend/src/ui/map-panel.tsx`, `build:frontend`
+4. `npm run typecheck` / `npm test` failures → high priority
+5. Prerequisite: `.reasonix/feature-lists/*.json` (from `catalog:gen`)
 
-Do **not** invent tasks outside N1 doc 14 unless catalog regression or explicit inbox promotion.
+Do **not** invent tasks outside P2 doc 14 unless blocking gate or catalog/graph regression.
 
 ## Judge
 
 | Rule | Action |
 |------|--------|
-| Blocks current N1 gate (G1–G3) | `priority:high` |
-| Already in triage `open`/`fixing` | skip |
-| Needs `DEEPSEEK_API_KEY` | → **inbox** (N1 does not need API) |
-| Touches security harness / MCP sanitizer | → **inbox** |
-| Confidence < high | → **inbox** |
-| >1 phase of work | split per task id (1.1, 2.1, …) |
-| Noise | skip |
+| Blocks G0–G3 | `priority:high` |
+| Already `open`/`fixing` | skip |
+| Needs DEEPSEEK | → inbox (P2 does not) |
+| CBM query_graph full import | → inbox (post-MVP) |
+| >1 phase | split by task id |
+| Phase N+1 before G(N) | skip |
 
-Aim **1–2 findings** per run. **Phase order strict:** G1 before Phase 2 tasks.
+Aim **1–2 findings** per run.
 
-## Hand off (N1)
+## Hand off (P2)
 
 ```
-worktree=knowledge-stale/<phase>-<slug>
-goal=<from docs/knowledge-stale-auto/15-verification-plan.zh.md G1|G2|G3>
+worktree=graph/p<phase>-<slug>
+goal=<from docs/p2-graph-artifact/15-verification-plan G0|G1|G2|G3>
 description=<task id from doc 14>
-docs=docs/knowledge-stale-auto/14-implementation-plan.zh.md
+docs=docs/p2-graph-artifact/14-implementation-plan.zh.md
 ```
 
-**Stop conditions:**
+## Stop
 
-| Task | Stop condition |
-|------|----------------|
-| 1.1–1.3 | `npm test -- tests/knowledge-fast-path` green; FP-02 passes |
-| 2.1–2.3 | `npm run knowledge:refresh-stale` exit 0; sync hook present |
-| 3.1–3.3 | README + `.env.example`; full `npm test` green |
-
-## Stop (non-negotiable)
-
-- Never merge to `main`. Never push directly to `main`.
-- Never expose secrets.
-- `loop-reviewer` REJECT → finding stays `open`; max 3 cycles → inbox.
+- Never merge to `main` directly.
+- loop-reviewer REJECT → max 3 cycles → inbox.
 - One primary variable per PR.
-- Catalog: no table-external listing items (if touching catalog regression only).
 
-## Implement / Verify
-
-Same three-phase flow as catalog loop:
-
-1. Worktree: `git worktree add ../llm-wiki-<slug> -b knowledge-stale/<slug>`
-2. Max **2** findings per full `/loop` run (N1 is small).
-3. Phase 3: mandatory `loop-reviewer` → `state/verdicts.jsonl`
-
-## Trigger (fixed — N1 daily driver)
+## Trigger (P2 daily driver)
 
 **Full cycle:**
 
 ```
-/loop Run loop-triage end-to-end for N1 knowledge-stale-auto: Phase 1 read state/triage.md and docs/knowledge-stale-auto/14-15; Phase 2 implement highest-priority open finding in isolated worktree (max 2); Phase 3 launch loop-reviewer Task subagent (readonly), append verdict to state/verdicts.jsonl; update state/phase.md and open PR only on PASS. Budget 80k tokens.
+/loop Run loop-triage end-to-end for P2 graph-artifact: Phase 1 read state/triage.md and docs/p2-graph-artifact/14-15; Phase 2 implement highest-priority open finding in isolated worktree (max 2); Phase 3 launch loop-reviewer Task subagent (readonly), append verdict to state/verdicts.jsonl; update state/phase.md and open PR only on PASS. Budget 120k tokens.
 ```
 
 **Triage only:**
 
 ```
-/loop Run loop-triage Phase 1 only for N1 knowledge-stale-auto: discover findings, update state/triage.md. Budget 30k tokens.
+/loop Run loop-triage Phase 1 only for P2 graph-artifact: discover findings, update state/triage.md. Budget 30k tokens.
 ```
 
-Mission: `00-mission-loop.mdc`. Workers: `13-knowledge-stale-loop`, `11-mcp-runtime-loop`, `10-catalog-loop` (regression only).
+Workers: `14-graph-loop`, `13-knowledge-stale-loop` (regression), `10-catalog-loop` (regression).

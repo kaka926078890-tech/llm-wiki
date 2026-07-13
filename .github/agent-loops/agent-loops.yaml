@@ -21,6 +21,25 @@ loops:
         - multi-repo-sync
         - verification-gates
 
+  - id: graph-loop
+    parent: llm-wiki-mission-loop
+    rule: .cursor/rules/14-graph-loop.mdc
+    goal: P2 graph.json from catalog + GET /api/graph + Map UI MVP.
+    matching_conditions:
+      paths:
+        - src/graph/**
+        - scripts/graph-gen.ts
+        - tests/graph*.test.ts
+        - frontend/src/ui/map-panel.tsx
+      labels:
+        - graph
+        - p2
+    acceptance_criteria:
+      required:
+        - npm run typecheck
+        - npm test -- tests/graph-generate tests/routes-graph
+        - npm run catalog:gen && npm run graph:gen
+
   - id: knowledge-stale-loop
     parent: llm-wiki-mission-loop
     rule: .cursor/rules/13-knowledge-stale-loop.mdc

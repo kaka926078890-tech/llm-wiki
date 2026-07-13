@@ -1,0 +1,44 @@
+---
+description: >
+  graph-loop — P2 project graph artifact from catalog + Map UI.
+globs:
+  - "src/graph/**"
+  - "scripts/graph-gen.ts"
+  - "tests/graph*.test.ts"
+  - "tests/routes-graph.test.ts"
+  - "frontend/src/ui/map-panel.tsx"
+alwaysApply: false
+---
+
+# Worker Loop: graph-loop (P2)
+
+Parent: `llm-wiki-mission-loop`
+
+## Goal
+
+Generate `.reasonix/graph.json` from catalog feature-lists; expose GET /api/graph; ship minimal Project Map UI.
+
+## Read before touching code
+
+1. `docs/p2-graph-artifact/14-implementation-plan.zh.md`
+2. `docs/p2-graph-artifact/15-verification-plan.zh.md`
+3. `state/phase.md`
+
+## Iterate
+
+1. State which P2 gate (G0–G3) this advances.
+2. Smallest diff; one primary variable per PR.
+3. Verify:
+
+```bash
+npm run typecheck
+npm run catalog:gen && npm run graph:gen
+npm test -- tests/graph-generate tests/routes-graph
+npm test
+npm run build:frontend   # Phase 3 only
+```
+
+## Stop signals
+
+Use `done` when gate commands for the touched phase pass.
+Use `blocked-needs-platform` if catalog feature-lists missing and cannot run catalog:gen.

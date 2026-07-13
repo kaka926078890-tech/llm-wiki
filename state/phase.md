@@ -1,19 +1,22 @@
-# N1 Knowledge Stale Auto — Phase & Gate Status
+# P2 Graph Artifact — Phase & Gate Status
 
-_Mission: knowledge-stale-auto — **CLOSED** 2026-07-13_  
-_Plans: `docs/knowledge-stale-auto/14-implementation-plan.zh.md` · `15-verification-plan.zh.md`_
+_Mission: p2-graph-artifact (active since 2026-07-13)_  
+_Plans: `docs/p2-graph-artifact/14-implementation-plan.zh.md` · `15-verification-plan.zh.md` · [loop-runbook](./loop-runbook.zh.md)_
 
 | Phase | Gate | Status | Evidence | Date |
 |-------|------|--------|----------|------|
-| 1 | G1 — fast path inline stale | pass | `npm test -- tests/knowledge-fast-path`; FP-02 | 2026-07-13 |
-| 2 | G2 — sync + refresh CLI | pass | `npm run knowledge:refresh-stale`; sync hook | 2026-07-13 |
-| 3 | G3 — docs + mission close | pass | README + `.env.example`; full `npm test` 149 pass | 2026-07-13 |
+| 0 | G0 — schema + store | open | — | — |
+| 1 | G1 — graph:gen from catalog | open | — | — |
+| 2 | G2 — GET /api/graph + sync hook | open | — | — |
+| 3 | G3 — Map UI + mission close | open | — | — |
 
-**Current phase:** closed  
-**Next task:** none — see `docs/backlog-and-loop-status.zh.md` (N2 CI golden candidate)
+**Current phase:** 0  
+**Next task:** 0.1 — `src/graph/types.ts` + `store.ts`
 
-**Env:** `LLM_WIKI_KNOWLEDGE_AUTO_REFRESH=true` (default on `sync:code:full`)
+**Baseline before loop:** `npm test` 149/149 pass (2026-07-13)
+
+**Env (planned):** `LLM_WIKI_GRAPH_AUTO_GEN=true` (default on after catalog:gen in sync:full)
 
 ---
 
-_Catalog mission remains closed._
+_N1 knowledge-stale-auto: CLOSED · Catalog: CLOSED_

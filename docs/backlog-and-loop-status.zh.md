@@ -6,8 +6,9 @@
 相关文档：
 
 - [progress.zh.md](./progress.zh.md) — 阶段完成度总览
-- [knowledge-stale-auto/14-implementation-plan.zh.md](./knowledge-stale-auto/14-implementation-plan.zh.md) — **N1 活跃 mission**
-- [knowledge-stale-auto/loop-runbook.zh.md](./knowledge-stale-auto/loop-runbook.zh.md) — N1 固定 `/loop` 句
+- [knowledge-stale-auto/14-implementation-plan.zh.md](./knowledge-stale-auto/14-implementation-plan.zh.md) — N1（closed）
+- [p2-graph-artifact/14-implementation-plan.zh.md](./p2-graph-artifact/14-implementation-plan.zh.md) — **P2 活跃 mission**
+- [p2-graph-artifact/loop-runbook.zh.md](./p2-graph-artifact/loop-runbook.zh.md) — P2 固定 `/loop` 句
 - [refactor-mcp/SUMMARY.zh.md](./refactor-mcp/SUMMARY.zh.md) — Catalog 重构（已归档）
 
 ---
@@ -111,7 +112,9 @@
 
 ### 4.2 开下一 loop 的前置条件（loop-engineering BUILD）
 
-**N1 closed（2026-07-13）：** G1–G3 pass — see `state/phase.md`.
+**N1 closed（2026-07-13）。**
+
+**P2 已启动（2026-07-13）：** `docs/p2-graph-artifact/14-15` · `state/triage.md` 4 条 open findings。
 
 **N2 及以后仍需 BUILD 流程：**
 
@@ -135,8 +138,9 @@
 |------|------|--------|
 | 2026-07-13 | Catalog Phase 0–4 正式 closed | 工程验收 + review-hardening PASS |
 | 2026-07-13 | 生产 MCP 启用 `LLM_WIKI_CATALOG_LISTING=true` | **是（需要）** |
+| 2026-07-13 | **P2 graph-artifact loop** 启动 | plan + triage 就绪；baseline 149 tests pass |
 | 2026-07-13 | N1 知识 stale 自动化 | **closed** — G1–G3 pass |
-| 2026-07-13 | 下一 loop 候选：**N2 P7 CI golden** | 待 BUILD |
+| 2026-07-13 | 下一 loop 候选：**N2 P7 CI golden** | 待 P2 或并行 BUILD |
 
 ---
 
