@@ -860,6 +860,43 @@ body {
   padding: 0.5rem 0;
 }
 
+.map-panel {
+  padding: 0.5rem 0;
+}
+
+.map-panel__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.map-panel__toolbar h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.map-panel__meta {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--fg-2);
+}
+
+.map-panel__repo {
+  margin-bottom: 1.25rem;
+}
+
+.map-panel__repo h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.map-panel__summary {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: var(--fg-2);
+}
+
 .knowledge-panel__toolbar {
   display: flex;
   align-items: center;

@@ -9,10 +9,11 @@ import { streamAgentRun } from "./lib/sse-client";
 import { Composer } from "./ui/composer";
 import { IndexPanel } from "./ui/index-panel";
 import { KnowledgePanel } from "./ui/knowledge-panel";
+import { MapPanel } from "./ui/map-panel";
 import { RunsPanel } from "./ui/runs-panel";
 import { AssistantMsg, UserMsg } from "./ui/thread";
 
-type AppView = "chat" | "runs" | "index" | "knowledge";
+type AppView = "chat" | "runs" | "index" | "knowledge" | "map";
 
 let nextId = 0;
 function uid(): string {
@@ -262,6 +263,13 @@ export default function App() {
             </button>
             <button
               type="button"
+              className={view === "map" ? "is-active" : ""}
+              onClick={() => setView("map")}
+            >
+              Map
+            </button>
+            <button
+              type="button"
               className={view === "knowledge" ? "is-active" : ""}
               onClick={() => setView("knowledge")}
             >
@@ -311,7 +319,9 @@ export default function App() {
               ? "Debug runs"
               : view === "knowledge"
                 ? "Knowledge cards"
-                : "Index status"
+                : view === "map"
+                  ? "Project map"
+                  : "Index status"
         }
       >
         {view === "runs" ? (
@@ -320,6 +330,8 @@ export default function App() {
           <IndexPanel />
         ) : view === "knowledge" ? (
           <KnowledgePanel />
+        ) : view === "map" ? (
+          <MapPanel />
         ) : (
         <>
         {messages.length === 0 ? (

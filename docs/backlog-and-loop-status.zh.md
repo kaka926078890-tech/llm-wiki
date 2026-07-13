@@ -76,10 +76,10 @@
 
 | 阶段 | 主题 | 状态 |
 |------|------|------|
-| P2 | 知识图谱 artifact（`.reasonix/graph.json`） | 未开始 |
+| P2 | 知识图谱 artifact（`.reasonix/graph.json`） | **closed** 2026-07-13 |
 | P3 | 知识卡片 embedding 语义检索 | 部分完成（lexical only） |
 | P4 | Evidence-bound 融合引擎 | 未开始 |
-| P5 | Project Map UI | 未开始 |
+| P5 | Project Map UI | **MVP closed**（Map tab + `/api/graph`） |
 | P6 | OKF / wiki 文档摄入（见仓库根 `Gemini.md` 设想） | 未开始 |
 | P7 | golden 发版门禁（完整） | 起步 |
 | P8 | 多 workspace 平台化 | 未开始 |
@@ -114,7 +114,7 @@
 
 **N1 closed（2026-07-13）。**
 
-**P2 已启动（2026-07-13）：** `docs/p2-graph-artifact/14-15` · `state/triage.md` 4 条 open findings。
+**P2 closed（2026-07-13）：** catalog → `graph:gen` → `GET /api/graph` → Map UI；156 tests；已合并 main。
 
 **N2 及以后仍需 BUILD 流程：**
 
@@ -138,9 +138,9 @@
 |------|------|--------|
 | 2026-07-13 | Catalog Phase 0–4 正式 closed | 工程验收 + review-hardening PASS |
 | 2026-07-13 | 生产 MCP 启用 `LLM_WIKI_CATALOG_LISTING=true` | **是（需要）** |
-| 2026-07-13 | **P2 graph-artifact loop** 启动 | plan + triage 就绪；baseline 149 tests pass |
+| 2026-07-13 | **P2 graph-artifact** | **closed** — G0–G3 pass；merged main |
 | 2026-07-13 | N1 知识 stale 自动化 | **closed** — G1–G3 pass |
-| 2026-07-13 | 下一 loop 候选：**N2 P7 CI golden** | 待 P2 或并行 BUILD |
+| 2026-07-13 | 下一 loop 候选：**N2 P7 CI golden** | 待 BUILD |
 
 ---
 

@@ -4,7 +4,7 @@
 
 ## 一句话
 
-**三仓库代码问答原型已可用**（Agent + MCP + CBM + 安全 harness + 证据闭环 + 检索控制 + 知识卡片 + 索引生命周期 + **Catalog 清单读表路径已收尾**）；**还不是**完整知识库产品（无 Project Map / P2 图谱、无 P4 融合引擎）。
+**三仓库代码问答原型已可用**（Agent + MCP + CBM + 安全 harness + 证据闭环 + 检索控制 + 知识卡片 + 索引生命周期 + **Catalog 清单读表** + **P2 图谱 artifact + Map UI**）；**还不是**完整知识库产品（无 P4 融合引擎、Map 仍为 catalog 投影 MVP）。
 
 Backlog 与 loop 状态见 [backlog-and-loop-status.zh.md](./backlog-and-loop-status.zh.md)。
 
@@ -20,6 +20,7 @@ Backlog 与 loop 状态见 [backlog-and-loop-status.zh.md](./backlog-and-loop-st
     ├── GET  /api/index/status → stale + sync job
     ├── POST /api/index/sync   → 后台 CBM re-index
     ├── GET  /api/knowledge    → 知识卡片列表（?sourceRunId= 过滤）
+    ├── GET  /api/graph        → 项目图谱（catalog 投影）
     └── GET  /api/runs      → 问答 telemetry 列表/详情
               ↓
          知识卡片 fast path（verified + hash 新鲜 → 跳过 tool loop）
@@ -36,6 +37,7 @@ Backlog 与 loop 状态见 [backlog-and-loop-status.zh.md](./backlog-and-loop-st
               ↓
          .reasonix/runs/<runId>.json
          .reasonix/knowledge-cards.jsonl
+         .reasonix/graph.json
          .reasonix/security-audit.jsonl
 ```
 
@@ -50,10 +52,10 @@ Backlog 与 loop 状态见 [backlog-and-loop-status.zh.md](./backlog-and-loop-st
 | **P0-B** | 检索计划与预算 | ✅ 完成 | plan、按题型 budget、硬路由、**total 用尽 loop 早停** |
 | **P1** | 索引生命周期 | ✅ 完成 | stale、`/api/index/*`、Index 页 Re-index、`sync:code:full`（含 catalog:gen） |
 | **Catalog** | 功能清单读表 | ✅ 完成 | G0–G4 pass；生产 `LLM_WIKI_CATALOG_LISTING=true` 已拍板 |
-| **P2** | 知识图谱 artifact | 🔶 loop 已启动 | `.reasonix/graph.json`；见 `docs/p2-graph-artifact/` |
+| **P2** | 知识图谱 artifact | ✅ 完成 | `graph:gen` → `.reasonix/graph.json`；`GET /api/graph` |
 | **P3** | 知识卡片 | 🔶 大部分完成 | 存储、fast path、去重合并、aliases、hit 统计、MCP 保存；无 embedding 语义索引 |
 | **P4** | Evidence-bound 引擎 | ❌ 未开始 | 多源融合 |
-| **P5** | 产品 UI | 🔶 进行中 | Chat + Runs（含保存知识）+ Index + **Knowledge**；无 Map |
+| **P5** | 产品 UI | 🔶 进行中 | Chat + Runs + Index + Knowledge + **Map**（catalog 投影 MVP） |
 | **P6** | 文档/wiki 摄入 | ❌ 未开始 | OKF / Karpathy LLM-Wiki |
 | **P7** | 评测回归 | 🔶 起步 | golden 15 题 + `verify:upgrade`；无 CI 门禁 |
 | **P8** | 平台化 | ❌ 未开始 | 多 workspace |
@@ -136,23 +138,22 @@ Backlog 与 loop 状态见 [backlog-and-loop-status.zh.md](./backlog-and-loop-st
 
 | 项 | 缺口 |
 |----|------|
-| P3 | **stale 自动 refresh**（N1 done）；**无 embedding** | 部分完成 |
-| P3 | 未反哺 P2 图谱 |
+| P3 | **无 embedding** | 部分完成 |
 | P7 | CI 自动 golden 回归 |
-| P2 + P5 | Project Map / 图谱 artifact |
+| P5 | Map 完整化（CBM 符号边、交互图） |
 | P4 | planner/retriever 分层重构 |
 | MCP 耗时 | 清单题已走 catalog 短路径；非清单仍 ~50–90s |
 
-建议下一 loop mission：**P2 graph-artifact**（进行中）→ **N2 P7 CI golden** → Map 完整化 / P4
+建议下一 loop mission：**N2 P7 CI golden** → Map 完整化 / P4
 
 ---
 
 ## 运维命令速查
 
 ```bash
-npm run sync:code:full     # 拉取 + CBM re-index
+npm run sync:code:full     # 拉取 + CBM re-index + catalog:gen + graph:gen
 npm run dev                # 前后端
-npm test                   # 116 条单测
+npm test                   # 156 条单测
 npm run verify:upgrade -- --quick
 ```
 

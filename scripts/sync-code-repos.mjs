@@ -77,6 +77,21 @@ if (catalogGen) {
   }
 }
 
+const graphGenOff = ["0", "false", "no"].includes(
+  (process.env.LLM_WIKI_GRAPH_AUTO_GEN ?? "true").trim().toLowerCase(),
+);
+if (catalogGen && !graphGenOff) {
+  console.log("\n[sync:code] graph:gen (project map)…");
+  const tsxBin = path.join(projectRoot, "node_modules", ".bin", "tsx");
+  const result = spawnSync(tsxBin, [path.join(projectRoot, "scripts", "graph-gen.ts")], {
+    cwd: projectRoot,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}
+
 if (autoSync) {
   console.log("\n[sync:code] CBM re-index (auto)…");
   const result = spawnSync(process.execPath, [path.join(projectRoot, "scripts", "cbm-sync.mjs")], {

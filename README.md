@@ -75,6 +75,7 @@ cd frontend && npm install && cd ..
 | `npm run sync:code` | clone/pull `code/` 下的三个并行代码仓库 |
 | `npm run sync:code:full` | `sync:code` + `catalog:gen` + `cbm:sync`（拉代码后生成功能清单 JSON 并重索引） |
 | `npm run catalog:gen` | 从三仓离线抽取功能清单 → `.reasonix/feature-lists/*.json` |
+| `npm run graph:gen` | 从 Catalog 功能清单生成项目图谱 → `.reasonix/graph.json` |
 | `npm run knowledge:refresh-stale` | 比对 evidence hash，标记/清除知识卡片 stale |
 | `npm run verify:listing` | 清单题 E0/E1 对比（`--baseline` / `--candidate --runs 3`；candidate 需 `LLM_WIKI_CATALOG_LISTING=true`） |
 | `npm run cbm:setup` | `sync:code` + `cbm:init` 一键启用 codebase-memory-mcp 索引 |
@@ -115,6 +116,8 @@ cd frontend && npm test && npm run build
 **Production MCP：** 部署时设置 `LLM_WIKI_CATALOG_LISTING=true`（已拍板 2026-07-13），并定期或发版前执行 `npm run sync:code:full`。回滚：设为 `false`。
 
 **Knowledge cards：** `sync:code:full` 在 CBM sync 后会自动跑 `knowledge:refresh-stale`（`LLM_WIKI_KNOWLEDGE_AUTO_REFRESH=true` 默认）。问答 fast path 命中前也会 inline 校验 evidence hash。
+
+**Project Map：** `catalog:gen` 后运行 `graph:gen`（`sync:code:full` 默认串联，`LLM_WIKI_GRAPH_AUTO_GEN=true`）。前端 **Map** 页读取 `GET /api/graph`。
 
 临时切换 MCP 为内部研发模式：
 
