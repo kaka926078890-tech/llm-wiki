@@ -143,7 +143,7 @@ Backlog 与 loop 状态见 [backlog-and-loop-status.zh.md](./backlog-and-loop-st
 | P4 | planner/retriever 分层重构 |
 | MCP 耗时 | 清单题已走 catalog 短路径；非清单仍 ~50–90s |
 
-建议下一 loop mission：**N1 知识 stale 自动化** 或 **N2 P7 CI** → 再 **P2 图谱 + Map**
+建议下一 loop mission：**N2 P7 CI golden** → 再 **P2 图谱 + Map**
 
 ---
 
@@ -172,7 +172,7 @@ npm run verify:upgrade -- --quick
 | 文档 | 用途 |
 |------|------|
 | [backlog-and-loop-status.zh.md](./backlog-and-loop-status.zh.md) | Backlog、Catalog 收尾、loop 状态 |
-| [knowledge-stale-auto/14-implementation-plan.zh.md](./knowledge-stale-auto/14-implementation-plan.zh.md) | N1 活跃 mission |
+| [knowledge-stale-auto/14-implementation-plan.zh.md](./knowledge-stale-auto/14-implementation-plan.zh.md) | N1 mission（已 closed） |
 | [productization-roadmap.zh.md](./productization-roadmap.zh.md) | 分阶段设计 |
 | [codebase-memory-mcp-integration-plan.zh.md](./codebase-memory-mcp-integration-plan.zh.md) | CBM 运维 |
 | [README](../README.md) | 安装与 dev |
