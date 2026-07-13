@@ -1,1 +1,2 @@
 {"finding":"Phase 4 (optional): drift log + edition filter","verdict":"pass","reason":"141/141 tests, typecheck clean, drift logs on catalog:gen, 基础版 excludes advance-only services, optional README summary","at":"2026-07-13T02:08:00.000Z"}
+{"finding":"Phase 4 review hardening","verdict":"pass","reason":"149/149 tests, typecheck clean, E1 meanF1=1.0, rules authoritative, G3 refuse, web extract restores 技能市场/租户用户","at":"2026-07-13T06:15:00.000Z"}

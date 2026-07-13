@@ -1,13 +1,12 @@
 # Loop State — Triage
 
 _Updated automatically by the loop-triage skill. Do not edit manually unless reopening a finding._
-_Last run: 2026-07-13 (review-hardening)_
+_Last run: 2026-07-13 (review-hardening PASS)_
 
 ## Active Findings
 
 | finding | source | priority | status | worktree | updated |
 |---------|--------|----------|--------|----------|---------|
-| Phase 4 review hardening | code-review follow-up | medium | reviewing | catalog/p4-hardening | 2026-07-13 |
 
 ## Inbox (awaiting human review)
 
@@ -26,6 +25,7 @@ _Last run: 2026-07-13 (review-hardening)_
 | Phase 2: listing short-path + E1 | verification-plan G2 | E1 meanF1=1.0 ≥ E0 | 2026-07-10 |
 | Phase 3: sync:full + regression | verification-plan G3 | catalog:gen in sync:full; quick verify 2/3 | 2026-07-10 |
 | Phase 4: drift log + edition filter | implementation-plan §4 | drift.ts + M2 filter + README summary; PR #1 | 2026-07-13 |
+| Phase 4 review hardening | code-review follow-up | rules authoritative + G3 refuse + web extract; E1=1.0; PR #1 | 2026-07-13 |
 
 ---
 
