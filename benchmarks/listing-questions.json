@@ -3,6 +3,13 @@
   "defaults": { "runs": 3 },
   "questions": [
     {
+      "id": "mw-services-basic",
+      "repo": "chatkit-middleware",
+      "listKind": "services",
+      "editionFilter": "basic",
+      "question": "chatkit-middleware 基础版有哪些微服务？"
+    },
+    {
       "id": "mw-services",
       "repo": "chatkit-middleware",
       "listKind": "services",

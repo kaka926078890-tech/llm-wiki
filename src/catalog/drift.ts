@@ -49,8 +49,16 @@ export function diffRepoFeatureLists(
   return drifts;
 }
 
-/** ponytail: stdout-only drift report; upgrade path = structured log / CI gate */
-export function logCatalogDrift(repo: CatalogRepo, drifts: ListDrift[]): void {
+/** ponytail: stdout + jsonl; upgrade path = structured log / CI gate */
+export function logCatalogDrift(
+  repo: CatalogRepo,
+  drifts: ListDrift[],
+  hasBaseline: boolean,
+): void {
+  if (!hasBaseline) {
+    console.log(`[catalog:drift] ${repo}: first run (no baseline)`);
+    return;
+  }
   if (!drifts.length) {
     console.log(`[catalog:drift] ${repo}: no changes`);
     return;

@@ -27,8 +27,8 @@ import { RunTelemetry, type RunTelemetrySnapshot } from "./telemetry/run-telemet
 import {
   buildCatalogListingAnswer,
   isCatalogListingEnabled,
+  tryCatalogListingResult,
 } from "./catalog/listing-path.js";
-import { detectCatalogIntent } from "./catalog/intent.js";
 
 function parseBool(raw: string | undefined, fallback: boolean): boolean {
   const n = raw?.trim().toLowerCase();
@@ -181,17 +181,16 @@ export async function finalizeRunAsk(input: RunAskInput): Promise<RunAskResult> 
   if (isCatalogListingEnabled()) {
     const profile: AnswerProfile =
       input.surface === "mcp" ? input.cfg.answerProfiles.mcp : input.cfg.answerProfiles.agent;
-    const catalogAnswer = buildCatalogListingAnswer({
+    const catalog = tryCatalogListingResult({
       cfg: input.cfg,
       question: input.question,
       repoScope: input.repoScope,
       profile,
     });
-    if (catalogAnswer !== null) {
-      const intent = detectCatalogIntent(input.question, input.repoScope);
-      if (intent) input.evidence.recordCatalogList(intent.repo);
+    if (catalog !== null) {
+      input.evidence.recordCatalogList(catalog.intent.repo);
       return postProcessRunAnswer({
-        rawAnswer: catalogAnswer,
+        rawAnswer: catalog.answer,
         evidence: input.evidence,
         telemetry: input.telemetry,
         cfg: input.cfg,

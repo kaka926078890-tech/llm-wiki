@@ -1,17 +1,20 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import type { CatalogRules } from "../rules.js";
 import type { FeatureItem } from "../types.js";
 
-export function extractFinclawCrates(finclawRoot: string): FeatureItem[] {
-  const cratesDir = path.join(finclawRoot, "crates");
+export function extractFinclawCrates(finclawRoot: string, rules: CatalogRules): FeatureItem[] {
+  const cratesDir = path.join(finclawRoot, rules.finclaw.cratesDir);
+  const excluded = new Set(rules.finclaw.vendorDirNames.map((n) => n.toLowerCase()));
   return readdirSync(cratesDir, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
+    .filter((name) => !rules.finclaw.excludeVendor || !excluded.has(name.toLowerCase()))
     .sort()
     .map((name) => ({
       id: `crate:${name}`,
       title: name,
-      sources: ["crates/"],
+      sources: [`${rules.finclaw.cratesDir}/`],
       confidence: "high" as const,
       section: "modules",
     }));
@@ -26,13 +29,13 @@ export function parseClapSubcommands(argsText: string): string[] {
   return [...new Set(names)].sort();
 }
 
-export function extractFinclawCli(finclawRoot: string): FeatureItem[] {
-  const argsPath = path.join(finclawRoot, "hosts", "cli", "src", "args.rs");
+export function extractFinclawCli(finclawRoot: string, rules: CatalogRules): FeatureItem[] {
+  const argsPath = path.join(finclawRoot, rules.finclaw.cliArgsPath);
   const text = readFileSync(argsPath, "utf-8");
   return parseClapSubcommands(text).map((name) => ({
     id: `cli:${name}`,
     title: name,
-    sources: ["hosts/cli/src/args.rs"],
+    sources: [rules.finclaw.cliArgsPath],
     confidence: "high" as const,
     section: "cli",
   }));

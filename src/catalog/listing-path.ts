@@ -1,7 +1,9 @@
 import type { AnswerProfile, LlmWikiConfig } from "../config.js";
-import { detectCatalogIntent } from "./intent.js";
+import { detectCatalogIntent, type CatalogIntent } from "./intent.js";
+import { lintCatalogAnswerSubset } from "./g3-lint.js";
 import { loadCatalogRules } from "./rules.js";
 import { loadRepoFeatureLists } from "./store.js";
+import { catalogListIsStale } from "./validate.js";
 import type {
   CatalogListKind,
   FeatureItem,
@@ -21,12 +23,25 @@ export function missingCatalogRefuseMessage(): string {
   );
 }
 
+export function g3SubsetRefuseMessage(extra: string[]): string {
+  return (
+    `清单答案含表外条目（${extra.join(", ")}），已拒绝返回。请检查 catalog:gen 与渲染逻辑。`
+  );
+}
+
+export function staleCatalogWarnMessage(repo: string, generatedAt: string): string {
+  return `[catalog] warning: ${repo} feature list may be stale (generatedAt=${generatedAt})`;
+}
+
 function filterMiddlewareEdition(
   items: FeatureItem[],
   edition: MiddlewareEdition,
 ): FeatureItem[] {
   if (edition === "advance") return items;
-  return items.filter((i) => i.editions?.includes("basic"));
+  return items.filter((i) => {
+    if (!i.editions?.length) return true;
+    return i.editions.includes("basic");
+  });
 }
 
 function itemsForIntent(
@@ -47,23 +62,31 @@ export function buildCatalogListingAnswer(input: {
   question: string;
   repoScope?: string;
   profile: AnswerProfile;
+  /** When provided, skip re-detecting intent (used by tryCatalogListingResult). */
+  intent?: CatalogIntent;
 }): string | null {
-  const intent = detectCatalogIntent(input.question, input.repoScope);
+  const rules = loadCatalogRules(input.cfg.projectRoot);
+  const intent =
+    input.intent ?? detectCatalogIntent(input.question, input.repoScope, rules);
   if (!intent) return null;
 
   const lists = loadRepoFeatureLists(input.cfg.projectRoot, intent.repo);
   if (!lists) return missingCatalogRefuseMessage();
 
+  if (catalogListIsStale(lists, rules.shared.catalogStaleDays)) {
+    console.warn(staleCatalogWarnMessage(lists.repo, lists.generatedAt));
+  }
+
   const items = itemsForIntent(lists, intent.listKind, intent.editionFilter);
   if (
     intent.listKind !== "not-microservice" &&
     items.length === 0 &&
-    loadCatalogRules(input.cfg.projectRoot).shared.missingListBehavior === "refuse_sync_hint"
+    rules.shared.missingListBehavior === "refuse_sync_hint"
   ) {
     return missingCatalogRefuseMessage();
   }
 
-  return renderFeatureListAnswer({
+  const answer = renderFeatureListAnswer({
     lists,
     listKind: intent.listKind,
     items,
@@ -72,4 +95,34 @@ export function buildCatalogListingAnswer(input: {
     alsoAppsNote: intent.listKind === "admin-features",
     editionFilter: intent.editionFilter,
   });
+
+  if (!rules.shared.allowExtraItems) {
+    const g3Items =
+      intent.listKind === "not-microservice"
+        ? [...(lists.lists.modules ?? []), ...(lists.lists.cli ?? [])]
+        : items;
+    const violations = lintCatalogAnswerSubset(answer, g3Items, { allowExtraItems: false });
+    if (violations.length) {
+      console.warn(
+        `[catalog] G3 subset refuse: ${violations.map((v) => v.token).join(", ")}`,
+      );
+      return g3SubsetRefuseMessage(violations.map((v) => v.token));
+    }
+  }
+
+  return answer;
+}
+
+export function tryCatalogListingResult(input: {
+  cfg: LlmWikiConfig;
+  question: string;
+  repoScope?: string;
+  profile: AnswerProfile;
+}): { answer: string; intent: CatalogIntent } | null {
+  const rules = loadCatalogRules(input.cfg.projectRoot);
+  const intent = detectCatalogIntent(input.question, input.repoScope, rules);
+  if (!intent) return null;
+  const answer = buildCatalogListingAnswer({ ...input, intent });
+  if (answer === null) return null;
+  return { answer, intent };
 }

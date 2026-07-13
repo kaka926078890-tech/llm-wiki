@@ -1,25 +1,55 @@
 # Catalog scope rules (Codex all-A baseline). See docs/refactor-mcp/16-decision-scope-all-A.zh.md
+# Parsed by src/catalog/rules.ts — fields here are authoritative at runtime.
 
 middleware:
   microservice_list:
     source: edition-manifest.services
     editions: merge_basic_and_advance
+    edition_names: [basic, advance]
     exclude_kinds: [infrastructure]
   default_feature_list: services
 
 chatkit-web:
+  default_feature_list: admin-features
   app_list:
     source: package.json.workspaces
     libraries_in_app_list: false
+  lib_dir_prefix: libs/
+  admin_app_paths:
+    app_tsx: chatkit-admin-mt/src/App.tsx
+    zh_locale: chatkit-admin-mt/src/locales/zh.json
   admin_feature_list:
     source: [routes, i18n_zh]
     exclude_paths: [/login, /]
   incomplete_docs_disclaimer: true
+  admin_section_layout_keys:
+    channels: channels
+    exec-policy: execPolicy
+    tool-policy: toolInvocationPolicy
+    usage: tokenUsage
+    domain-allowlist: domainAllowlist
+    execution-logs: executionLogs
+    llm: llmConfig
+    users: tenantUsers
+  admin_page_layout_keys:
+    PlatformSettingsPage: platformSettings
+    UsersPage: userManagement
+    PlatformSkillsPage: platformSkillCatalog
+    TemplatesPage: characterTemplates
+    LLMConfigPage: llmConfig
+    TenantsPage: tenantManagement
+  admin_path_layout_keys:
+    /shared/skills: sharedSkillCatalog
+    /admin/skills: sharedSkillCatalog
+    /platform/skills: platformSkillCatalog
 
 finclaw:
   module_list:
     source: cargo_crates
     exclude_vendor: true
+    vendor_dir_names: [vendor]
+  crates_dir: crates
+  cli_args_path: hosts/cli/src/args.rs
   cli_feature_list:
     source: clap_subcommands
   microservice_question: redirect_to_modules_cli
@@ -28,3 +58,8 @@ shared:
   public_show_paths: false
   missing_list_behavior: refuse_sync_hint
   allow_extra_items: false
+  catalog_stale_days: 14
+  copy:
+    finclaw_not_microservice: "finclaw 不是微服务架构，而是 Rust 工作区单体/CLI 运行时。以下为模块与 CLI 能力清单。"
+    web_admin_apps_note: "说明：另有用户端应用 finclaw-frontend 与移动端 chatkit-mobile（见应用清单）。"
+    web_incomplete_docs_disclaimer: "说明：以下为界面/工程可枚举的功能入口，不是完整商业功能说明书。"

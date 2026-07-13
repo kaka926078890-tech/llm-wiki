@@ -1,4 +1,4 @@
-import { extractMentionedTokens, normalizeToken } from "../catalog/render.js";
+import { normalizeToken } from "../catalog/metrics.js";
 
 export interface SetMetrics {
   precision: number;
@@ -39,8 +39,13 @@ export function pairwiseJaccardStability(sets: Set<string>[]): number {
   return pairs > 0 ? sum / pairs : 1;
 }
 
+/** List-item bold titles only — ignore README summary text after the title. */
 export function tokensFromAnswer(answer: string): Set<string> {
-  return extractMentionedTokens(answer);
+  const tokens = new Set<string>();
+  for (const m of answer.matchAll(/^- \*\*([^*]+)\*\*/gm)) {
+    tokens.add(normalizeToken(m[1]!));
+  }
+  return tokens;
 }
 
 export function detectGuessCountViolation(

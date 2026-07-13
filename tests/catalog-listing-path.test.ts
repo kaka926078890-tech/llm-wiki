@@ -1,4 +1,4 @@
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -106,5 +106,37 @@ describe("catalog listing path", () => {
     expect(basic).toContain("api-gateway");
     expect(basic).not.toContain("trigger-gateway");
     expect(full).toContain("trigger-gateway");
+  });
+
+  it("renders title-only bullets when summary is absent", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "llm-wiki-cat-"));
+    const c = cfgFor(root);
+    c.projectRoot = root;
+    generateAllFeatureLists(root, c.repos);
+
+    const answer = buildCatalogListingAnswer({
+      cfg: c,
+      question: "chatkit-middleware 有哪些微服务？",
+      profile: "public",
+    });
+    expect(answer).toMatch(/- \*\*ai-infra-rs\*\*(?!\s*：)/);
+  });
+
+  it("accepts legacy JSON without editions on basic filter", () => {
+    const root = mkdtempSync(path.join(tmpdir(), "llm-wiki-cat-"));
+    const c = cfgFor(root);
+    c.projectRoot = root;
+    generateAllFeatureLists(root, c.repos);
+    const file = path.join(root, ".reasonix/feature-lists/chatkit-middleware.json");
+    const raw = JSON.parse(readFileSync(file, "utf-8"));
+    for (const svc of raw.lists.services) delete svc.editions;
+    writeFileSync(file, JSON.stringify(raw, null, 2));
+
+    const basic = buildCatalogListingAnswer({
+      cfg: c,
+      question: "chatkit-middleware 基础版有哪些微服务？",
+      profile: "public",
+    });
+    expect(basic).toContain("api-gateway");
   });
 });

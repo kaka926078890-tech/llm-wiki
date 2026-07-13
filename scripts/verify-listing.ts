@@ -23,13 +23,15 @@ import { DeepSeekClient } from "../src/core/client.js";
 import { LlmAnswerSummaryAgent } from "../src/answer-summary-agent.js";
 import { finalizeRunAsk } from "../src/finalize-run.js";
 import { buildLoopBundle } from "../src/loop-runner.js";
-import type { CatalogListKind, CatalogRepo } from "../src/catalog/types.js";
+import type { CatalogListKind, CatalogRepo, MiddlewareEdition } from "../src/catalog/types.js";
+import { loadRepoFeatureLists } from "../src/catalog/store.js";
 
 interface ListingQuestion {
   id: string;
   repo: CatalogRepo;
   listKind: CatalogListKind;
   question: string;
+  editionFilter?: MiddlewareEdition;
 }
 
 interface ListingFile {
@@ -93,17 +95,23 @@ function loadListingQuestions(): ListingFile {
   return JSON.parse(readFileSync(file, "utf-8")) as ListingFile;
 }
 
-function loadGoldSet(repo: CatalogRepo, listKind: CatalogListKind): Set<string> {
-  const catalogPath = path.join(
-    getProjectRoot(),
-    "benchmarks",
-    "catalogs",
-    `${repo}.${listKind}.json`,
-  );
+function loadGoldSet(
+  projectRoot: string,
+  repo: CatalogRepo,
+  listKind: CatalogListKind,
+  editionFilter?: MiddlewareEdition,
+): Set<string> {
   if (listKind === "not-microservice") {
     const mod = loadGoldNames(repo, "modules");
     const cli = loadGoldNames(repo, "cli");
     return tokenSet([...mod, ...cli]);
+  }
+  if (editionFilter === "basic" && repo === "chatkit-middleware" && listKind === "services") {
+    const lists = loadRepoFeatureLists(projectRoot, repo);
+    const names = (lists?.lists.services ?? [])
+      .filter((i) => !i.editions?.length || i.editions.includes("basic"))
+      .map((i) => i.title);
+    if (names.length) return tokenSet(names);
   }
   return tokenSet(loadGoldNames(repo, listKind));
 }
@@ -182,7 +190,7 @@ async function main(): Promise<void> {
   const questionReports: QuestionReport[] = [];
 
   for (const q of listing.questions) {
-    const gold = loadGoldSet(q.repo, q.listKind);
+    const gold = loadGoldSet(projectRoot, q.repo, q.listKind, q.editionFilter);
     const runReports: QuestionRun[] = [];
     const tokenSets: Set<string>[] = [];
 

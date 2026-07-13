@@ -70,5 +70,6 @@
     "cli:uninstall",
     "cli:update",
     "cli:version"
-  ]
+  ],
+  "generatedAt": "2026-07-13T06:12:15.810Z"
 }

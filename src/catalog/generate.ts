@@ -1,15 +1,36 @@
 import type { AuthorizedRoots } from "../config.js";
 import { diffRepoFeatureLists, logCatalogDrift } from "./drift.js";
-import { exportBenchmarkCatalog, loadRepoFeatureLists, saveRepoFeatureLists } from "./store.js";
-import type { CatalogRepo, RepoFeatureLists } from "./types.js";
+import { loadCatalogRules } from "./rules.js";
+import {
+  appendCatalogDriftRecord,
+  exportBenchmarkCatalog,
+  loadRepoFeatureLists,
+  saveRepoFeatureLists,
+} from "./store.js";
+import type { RepoFeatureLists } from "./types.js";
 import { extractMiddlewareServices } from "./extract/middleware.js";
 import { extractChatkitWeb } from "./extract/chatkit-web.js";
 import { extractFinclawCrates, extractFinclawCli } from "./extract/finclaw.js";
+
+function saveWithDrift(projectRoot: string, data: RepoFeatureLists): void {
+  const prev = loadRepoFeatureLists(projectRoot, data.repo);
+  const drifts = diffRepoFeatureLists(prev, data);
+  logCatalogDrift(data.repo, drifts, prev !== null);
+  if (drifts.length) {
+    appendCatalogDriftRecord(projectRoot, {
+      at: new Date().toISOString(),
+      repo: data.repo,
+      drifts,
+    });
+  }
+  saveRepoFeatureLists(projectRoot, data);
+}
 
 export function generateAllFeatureLists(
   projectRoot: string,
   repos: AuthorizedRoots,
 ): RepoFeatureLists[] {
+  const rules = loadCatalogRules(projectRoot);
   const now = new Date().toISOString();
   const out: RepoFeatureLists[] = [];
 
@@ -17,15 +38,14 @@ export function generateAllFeatureLists(
     repo: "chatkit-middleware",
     generatedAt: now,
     lists: {
-      services: extractMiddlewareServices(repos.middleware),
+      services: extractMiddlewareServices(repos.middleware, rules),
     },
   };
-  logCatalogDrift(mw.repo, diffRepoFeatureLists(loadRepoFeatureLists(projectRoot, mw.repo), mw));
-  saveRepoFeatureLists(projectRoot, mw);
+  saveWithDrift(projectRoot, mw);
   exportBenchmarkCatalog(projectRoot, mw, "services");
   out.push(mw);
 
-  const webData = extractChatkitWeb(repos.web);
+  const webData = extractChatkitWeb(repos.web, rules);
   const web: RepoFeatureLists = {
     repo: "chatkit-web",
     generatedAt: now,
@@ -35,8 +55,7 @@ export function generateAllFeatureLists(
       "admin-features": webData.adminFeatures,
     },
   };
-  logCatalogDrift(web.repo, diffRepoFeatureLists(loadRepoFeatureLists(projectRoot, web.repo), web));
-  saveRepoFeatureLists(projectRoot, web);
+  saveWithDrift(projectRoot, web);
   exportBenchmarkCatalog(projectRoot, web, "apps");
   exportBenchmarkCatalog(projectRoot, web, "admin-features");
   out.push(web);
@@ -45,24 +64,14 @@ export function generateAllFeatureLists(
     repo: "finclaw",
     generatedAt: now,
     lists: {
-      modules: extractFinclawCrates(repos.finclaw),
-      cli: extractFinclawCli(repos.finclaw),
+      modules: extractFinclawCrates(repos.finclaw, rules),
+      cli: extractFinclawCli(repos.finclaw, rules),
     },
   };
-  logCatalogDrift(fin.repo, diffRepoFeatureLists(loadRepoFeatureLists(projectRoot, fin.repo), fin));
-  saveRepoFeatureLists(projectRoot, fin);
+  saveWithDrift(projectRoot, fin);
   exportBenchmarkCatalog(projectRoot, fin, "modules");
   exportBenchmarkCatalog(projectRoot, fin, "cli");
   out.push(fin);
 
   return out;
-}
-
-export function repoScopeToCatalogRepo(scope?: string): CatalogRepo | null {
-  const s = scope?.trim().toLowerCase();
-  if (!s || s === "all") return null;
-  if (s === "middleware" || s === "chatkit-middleware") return "chatkit-middleware";
-  if (s === "web" || s === "chatkit-web") return "chatkit-web";
-  if (s === "finclaw") return "finclaw";
-  return null;
 }

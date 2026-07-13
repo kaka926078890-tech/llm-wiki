@@ -3,6 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { getProjectRoot } from "../src/config.js";
+import { loadCatalogRules } from "../src/catalog/rules.js";
 import { parseEditionManifestServices, extractMiddlewareServices, parseEditionManifestDetailed } from "../src/catalog/extract/middleware.js";
 import { extractChatkitWeb } from "../src/catalog/extract/chatkit-web.js";
 import {
@@ -12,6 +13,7 @@ import {
 } from "../src/catalog/extract/finclaw.js";
 
 const root = getProjectRoot();
+const rules = loadCatalogRules(root);
 const repos = {
   middleware: path.join(root, "code/chatkit-middleware"),
   web: path.join(root, "code/chatkit-web"),
@@ -32,7 +34,7 @@ describe("catalog extract middleware", () => {
   });
 
   it("extractMiddlewareServices matches manifest set", () => {
-    const items = extractMiddlewareServices(repos.middleware);
+    const items = extractMiddlewareServices(repos.middleware, rules);
     const manifest = parseEditionManifestServices(
       readFileSync(path.join(repos.middleware, "edition-manifest.yaml"), "utf-8"),
     );
@@ -55,7 +57,7 @@ describe("catalog extract middleware", () => {
   });
 
   it("fills summary from service README when present", () => {
-    const items = extractMiddlewareServices(repos.middleware);
+    const items = extractMiddlewareServices(repos.middleware, rules);
     const gw = items.find((i) => i.title === "api-gateway");
     expect(gw?.summary).toBeTruthy();
   });
@@ -63,20 +65,22 @@ describe("catalog extract middleware", () => {
 
 describe("catalog extract chatkit-web", () => {
   it("splits workspaces into apps and libs", () => {
-    const { apps, libs, adminFeatures } = extractChatkitWeb(repos.web);
+    const { apps, libs, adminFeatures } = extractChatkitWeb(repos.web, rules);
     const appTitles = apps.map((a) => a.title);
     expect(appTitles).toEqual(
       expect.arrayContaining(["chatkit-admin-mt", "chatkit-mobile", "finclaw-frontend"]),
     );
     expect(libs.length).toBeGreaterThan(0);
     expect(adminFeatures.some((f) => f.title.includes("渠道"))).toBe(true);
+    expect(adminFeatures.some((f) => f.title === "技能市场")).toBe(true);
+    expect(adminFeatures.some((f) => f.title === "租户用户")).toBe(true);
     expect(adminFeatures.every((f) => !f.title.startsWith("/"))).toBe(true);
   });
 });
 
 describe("catalog extract finclaw", () => {
   it("lists crates without vendor", () => {
-    const crates = extractFinclawCrates(repos.finclaw);
+    const crates = extractFinclawCrates(repos.finclaw, rules);
     expect(crates.length).toBeGreaterThan(0);
     expect(crates.every((c) => !c.title.includes("vendor"))).toBe(true);
   });
@@ -89,6 +93,6 @@ describe("catalog extract finclaw", () => {
     const cmds = parseClapSubcommands(argsText);
     expect(cmds).toContain("chat");
     expect(cmds).toContain("serve");
-    expect(extractFinclawCli(repos.finclaw).length).toBeGreaterThan(5);
+    expect(extractFinclawCli(repos.finclaw, rules).length).toBeGreaterThan(5);
   });
 });

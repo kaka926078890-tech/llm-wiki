@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import type { CatalogRules } from "../rules.js";
 import type { FeatureItem, MiddlewareEdition } from "../types.js";
 
 export type { MiddlewareEdition };
@@ -8,39 +9,42 @@ export interface EditionServiceRow {
   name: string;
   path?: string;
   editions: MiddlewareEdition[];
+  kind?: string;
+}
+
+function editionFromLine(line: string, names: MiddlewareEdition[]): MiddlewareEdition | null {
+  for (const name of names) {
+    if (new RegExp(`^\\s{2}${name}:\\s*$`).test(line)) return name;
+  }
+  return null;
 }
 
 /** ponytail: line-scanner for edition-manifest; upgrade path = YAML parser */
-export function parseEditionManifestServices(manifestText: string): string[] {
-  return parseEditionManifestDetailed(manifestText).map((s) => s.name);
-}
-
-export function parseEditionManifestDetailed(manifestText: string): EditionServiceRow[] {
+export function parseEditionManifestDetailed(
+  manifestText: string,
+  editionNames: MiddlewareEdition[] = ["basic", "advance"],
+  excludeKinds: string[] = ["infrastructure"],
+): EditionServiceRow[] {
+  const excluded = new Set(excludeKinds);
   const lines = manifestText.split("\n");
   let currentEdition: MiddlewareEdition | null = null;
-  let inServices = false;
+  let currentKind: string | null = null;
   let pendingName: string | null = null;
   const byName = new Map<string, EditionServiceRow>();
 
   for (const line of lines) {
-    if (/^\s{2}basic:\s*$/.test(line)) {
-      currentEdition = "basic";
-      inServices = false;
+    const edition = editionFromLine(line, editionNames);
+    if (edition) {
+      currentEdition = edition;
+      currentKind = null;
       continue;
     }
-    if (/^\s{2}advance:\s*$/.test(line)) {
-      currentEdition = "advance";
-      inServices = false;
+    const kindM = line.match(/^\s{4}(\w[\w-]*):\s*$/);
+    if (currentEdition && kindM) {
+      currentKind = kindM[1]!;
       continue;
     }
-    if (currentEdition && /^\s{4}services:\s*$/.test(line)) {
-      inServices = true;
-      continue;
-    }
-    if (inServices && currentEdition && /^\s{4}\w/.test(line) && !line.includes("services:")) {
-      inServices = false;
-    }
-    if (!inServices || !currentEdition) continue;
+    if (!currentEdition || !currentKind || excluded.has(currentKind)) continue;
 
     const nameM = line.match(/^\s{6}-\s+name:\s+(\S+)/);
     if (nameM) {
@@ -48,6 +52,7 @@ export function parseEditionManifestDetailed(manifestText: string): EditionServi
       const row = byName.get(pendingName) ?? {
         name: pendingName,
         editions: [],
+        kind: currentKind,
       };
       if (!row.editions.includes(currentEdition)) row.editions.push(currentEdition);
       byName.set(pendingName, row);
@@ -68,6 +73,14 @@ export function parseEditionManifestDetailed(manifestText: string): EditionServi
   return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
+export function parseEditionManifestServices(
+  manifestText: string,
+  editionNames?: MiddlewareEdition[],
+  excludeKinds?: string[],
+): string[] {
+  return parseEditionManifestDetailed(manifestText, editionNames, excludeKinds).map((s) => s.name);
+}
+
 function firstReadmeParagraph(readmePath: string): string | undefined {
   if (!existsSync(readmePath)) return undefined;
   const lines = readFileSync(readmePath, "utf-8").split("\n");
@@ -85,10 +98,17 @@ function firstReadmeParagraph(readmePath: string): string | undefined {
   return text.length > 200 ? `${text.slice(0, 197)}...` : text;
 }
 
-export function extractMiddlewareServices(middlewareRoot: string): FeatureItem[] {
+export function extractMiddlewareServices(
+  middlewareRoot: string,
+  rules: CatalogRules,
+): FeatureItem[] {
   const manifestPath = path.join(middlewareRoot, "edition-manifest.yaml");
   const text = readFileSync(manifestPath, "utf-8");
-  return parseEditionManifestDetailed(text).map((row) => {
+  return parseEditionManifestDetailed(
+    text,
+    rules.middleware.editionNames,
+    rules.middleware.excludeKinds,
+  ).map((row) => {
     const summary = row.path
       ? firstReadmeParagraph(path.join(middlewareRoot, row.path, "README.md"))
       : undefined;

@@ -9,11 +9,7 @@ import {
   finalizeKnowledgeCardAnswer,
 } from "../finalize-run.js";
 import { tryKnowledgeFastPath } from "../core/knowledge/fast-path.js";
-import {
-  buildCatalogListingAnswer,
-  isCatalogListingEnabled,
-} from "../catalog/listing-path.js";
-import { detectCatalogIntent } from "../catalog/intent.js";
+import { isCatalogListingEnabled, tryCatalogListingResult } from "../catalog/listing-path.js";
 import { EvidenceCollector } from "../core/evidence/index.js";
 import { formatEvidenceFooter } from "../core/evidence/index.js";
 import { mapLoopEventToSse } from "../sse/map-loop-event.js";
@@ -76,14 +72,15 @@ export async function registerAskRoutes(
     const runId = randomUUID();
 
     if (isCatalogListingEnabled()) {
-      const catalogAnswer = buildCatalogListingAnswer({
+      const catalog = tryCatalogListingResult({
         cfg,
         question: rawQuestion,
         profile: cfg.answerProfiles.agent,
       });
-      if (catalogAnswer !== null) {
+      if (catalog) {
         const telemetry = new RunTelemetry(loadRunTelemetryOptions(cfg.projectRoot), runId);
         const evidence = new EvidenceCollector(runId, rawQuestion);
+        evidence.recordCatalogList(catalog.intent.repo);
         reply.hijack();
         reply.raw.writeHead(200, {
           "Content-Type": "text/event-stream",
@@ -92,10 +89,8 @@ export async function registerAskRoutes(
           "Access-Control-Allow-Origin": "*",
         });
         try {
-          const intent = detectCatalogIntent(rawQuestion);
-          if (intent) evidence.recordCatalogList(intent.repo);
           const processed = await postProcessRunAnswer({
-            rawAnswer: catalogAnswer,
+            rawAnswer: catalog.answer,
             evidence,
             telemetry,
             cfg,

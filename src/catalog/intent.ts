@@ -1,5 +1,7 @@
 import type { CatalogListKind, CatalogRepo, MiddlewareEdition } from "./types.js";
-import { repoScopeToCatalogRepo } from "./generate.js";
+import { repoScopeToCatalogRepo } from "./scope.js";
+import { loadCatalogRules } from "./rules.js";
+import type { CatalogRules } from "./rules.js";
 
 const MW_RE = /chatkit-middleware|middleware/i;
 const WEB_RE = /chatkit-web/i;
@@ -17,14 +19,25 @@ export function detectMiddlewareEditionFilter(question: string): MiddlewareEditi
   return undefined;
 }
 
+function resolveWebListKind(q: string, scoped: boolean, rules: CatalogRules): CatalogListKind {
+  if (/管理后台|admin/i.test(q)) return "admin-features";
+  if (/应用|app|workspace|frontend|移动端/i.test(q)) return "apps";
+  return rules.web.defaultFeatureList;
+}
+
 export function detectCatalogIntent(
   question: string,
   repoScope?: string,
+  rules: CatalogRules = loadCatalogRules(),
 ): CatalogIntent | null {
   const q = question.trim();
   const scoped = repoScopeToCatalogRepo(repoScope);
 
-  if (FIN_RE.test(q) && /微服务/.test(q)) {
+  if (
+    rules.finclaw.microserviceRedirect
+    && FIN_RE.test(q)
+    && /微服务/.test(q)
+  ) {
     return { repo: "finclaw", listKind: "not-microservice" };
   }
 
@@ -38,14 +51,19 @@ export function detectCatalogIntent(
     return { repo: "finclaw", listKind: "modules" };
   }
 
-  if ((scoped === "chatkit-web" || (!scoped && WEB_RE.test(q))) && /管理后台|admin/.test(q)) {
-    return { repo: "chatkit-web", listKind: "admin-features" };
-  }
-  if ((scoped === "chatkit-web" || (!scoped && WEB_RE.test(q))) && /应用|app|workspace/.test(q)) {
-    return { repo: "chatkit-web", listKind: "apps" };
-  }
-  if (scoped === "chatkit-web" || (!scoped && WEB_RE.test(q) && /清单|列表|有哪些|功能/.test(q))) {
-    return { repo: "chatkit-web", listKind: "admin-features" };
+  if (scoped === "chatkit-web" || (!scoped && WEB_RE.test(q))) {
+    if (/管理后台|admin/i.test(q)) {
+      return { repo: "chatkit-web", listKind: "admin-features" };
+    }
+    if (/应用|app|workspace|frontend|移动端/i.test(q)) {
+      return { repo: "chatkit-web", listKind: "apps" };
+    }
+    if (/清单|列表|有哪些|功能/.test(q)) {
+      return {
+        repo: "chatkit-web",
+        listKind: resolveWebListKind(q, scoped === "chatkit-web", rules),
+      };
+    }
   }
 
   if (
@@ -64,6 +82,10 @@ export function detectCatalogIntent(
   return null;
 }
 
-export function isCatalogListingQuestion(question: string, repoScope?: string): boolean {
-  return detectCatalogIntent(question, repoScope) !== null;
+export function isCatalogListingQuestion(
+  question: string,
+  repoScope?: string,
+  rules?: CatalogRules,
+): boolean {
+  return detectCatalogIntent(question, repoScope, rules) !== null;
 }

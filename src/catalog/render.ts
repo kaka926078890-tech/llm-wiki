@@ -1,11 +1,17 @@
 import type { AnswerProfile } from "../config.js";
 import { loadCatalogRules } from "./rules.js";
+import {
+  finclawNotMicroserviceBody,
+  webAdminAppsNote,
+  webIncompleteDocsDisclaimer,
+} from "./copy.js";
 import type {
   CatalogListKind,
   FeatureItem,
   MiddlewareEdition,
   RepoFeatureLists,
 } from "./types.js";
+import { itemTitlesForMetrics } from "./metrics.js";
 
 function sectionHeading(
   kind: CatalogListKind,
@@ -38,11 +44,11 @@ function sectionHeading(
   }
 }
 
-export function renderNotMicroserviceAnswer(profile: AnswerProfile): string {
-  const body =
-    "finclaw 不是微服务架构，而是 Rust 工作区单体/CLI 运行时。以下为模块与 CLI 能力清单。";
-  if (profile === "public") return body;
-  return `${body}\n\n（口径：F3=A，见 config/catalog-rules.yaml）`;
+export function renderNotMicroserviceAnswer(
+  profile: AnswerProfile,
+  projectRoot: string,
+): string {
+  return finclawNotMicroserviceBody(profile, loadCatalogRules(projectRoot));
 }
 
 export function renderFeatureListAnswer(input: {
@@ -60,7 +66,7 @@ export function renderFeatureListAnswer(input: {
   if (listKind === "not-microservice") {
     const mod = lists.lists.modules ?? [];
     const cli = lists.lists.cli ?? [];
-    const parts = [renderNotMicroserviceAnswer(profile)];
+    const parts = [renderNotMicroserviceAnswer(profile, input.projectRoot)];
     if (mod.length) {
       parts.push(renderSection("模块", mod, profile, rules.shared.publicShowPaths));
     }
@@ -77,9 +83,7 @@ export function renderFeatureListAnswer(input: {
   const lines: string[] = [heading];
 
   if (input.alsoAppsNote && listKind === "admin-features") {
-    lines.push(
-      "说明：另有用户端应用 finclaw-frontend 与移动端 chatkit-mobile（见应用清单）。",
-    );
+    lines.push(webAdminAppsNote(rules));
   }
 
   if (
@@ -87,9 +91,7 @@ export function renderFeatureListAnswer(input: {
     lists.repo === "chatkit-web" &&
     profile === "public"
   ) {
-    lines.push(
-      "说明：以下为界面/工程可枚举的功能入口，不是完整商业功能说明书。",
-    );
+    lines.push(webIncompleteDocsDisclaimer(rules));
   }
 
   for (const item of items) {
@@ -123,24 +125,4 @@ function renderSection(
   return lines.join("\n");
 }
 
-export function itemTitlesForMetrics(items: FeatureItem[]): string[] {
-  return items.map((i) => normalizeToken(i.title)).filter(Boolean);
-}
-
-export function normalizeToken(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9\u4e00-\u9fff-]+/g, " ")
-    .trim();
-}
-
-export function extractMentionedTokens(answer: string): Set<string> {
-  const tokens = new Set<string>();
-  for (const m of answer.matchAll(/\*\*([^*]+)\*\*/g)) {
-    tokens.add(normalizeToken(m[1]!));
-  }
-  for (const m of answer.matchAll(/(?:^|\n)-\s+([^\n:]+)/gm)) {
-    tokens.add(normalizeToken(m[1]!.replace(/\*\*/g, "")));
-  }
-  return tokens;
-}
+export { itemTitlesForMetrics } from "./metrics.js";
