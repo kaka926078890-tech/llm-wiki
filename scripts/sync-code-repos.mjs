@@ -87,3 +87,19 @@ if (autoSync) {
     process.exit(result.status ?? 1);
   }
 }
+
+const knowledgeRefreshOff = ["0", "false", "no"].includes(
+  (process.env.LLM_WIKI_KNOWLEDGE_AUTO_REFRESH ?? "true").trim().toLowerCase(),
+);
+if (autoSync && !knowledgeRefreshOff) {
+  console.log("\n[sync:code] knowledge:refresh-stale…");
+  const tsxBin = path.join(projectRoot, "node_modules", ".bin", "tsx");
+  const result = spawnSync(tsxBin, [path.join(projectRoot, "scripts", "knowledge-refresh-stale.ts")], {
+    cwd: projectRoot,
+    stdio: "inherit",
+    env: process.env,
+  });
+  if (result.status !== 0) {
+    process.exit(result.status ?? 1);
+  }
+}

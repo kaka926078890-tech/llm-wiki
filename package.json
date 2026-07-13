@@ -19,6 +19,7 @@
     "verify:upgrade": "tsx scripts/verify-upgrade.ts",
     "verify:listing": "tsx scripts/verify-listing.ts",
     "catalog:gen": "tsx scripts/catalog-gen.ts",
+    "knowledge:refresh-stale": "tsx scripts/knowledge-refresh-stale.ts",
     "sync:code": "node scripts/sync-code-repos.mjs",
     "sync:code:full": "node scripts/sync-code-repos.mjs --cbm-sync --catalog-gen",
     "typecheck": "tsc --noEmit",

@@ -21,6 +21,22 @@ loops:
         - multi-repo-sync
         - verification-gates
 
+  - id: knowledge-stale-loop
+    parent: llm-wiki-mission-loop
+    rule: .cursor/rules/13-knowledge-stale-loop.mdc
+    goal: Auto refresh knowledge card stale state; inline check on fast path (N1).
+    matching_conditions:
+      paths:
+        - src/core/knowledge/**
+        - scripts/knowledge-refresh-stale.ts
+        - tests/knowledge*.test.ts
+      labels:
+        - knowledge-stale
+    acceptance_criteria:
+      required:
+        - npm run typecheck
+        - npm test -- tests/knowledge-fast-path tests/knowledge
+
   - id: catalog-loop
     parent: llm-wiki-mission-loop
     rule: .cursor/rules/10-catalog-loop.mdc

@@ -1,8 +1,9 @@
 # llm-wiki 知识质量重构：讨论汇总与方案总览
 
 日期：2026-07-10  
-状态：**讨论汇总（单一事实来源）**  
+状态：**已落地并收尾（2026-07-13）** — Phase 0–4 pass；生产 listing flag 已拍板开启。  
 说明：本文合并 `docs/refactor-mcp/00`–`09` 的讨论结论；分篇原文保留作附录索引。  
+**进度 / backlog / loop：** [backlog-and-loop-status.zh.md](../backlog-and-loop-status.zh.md)  
 **诉求/目标/方案对外说明请优先读：[requirements-goals-solution.zh.md](./requirements-goals-solution.zh.md)**  
 **可落地性 / 实施计划 / 验证计划：[13](./13-readiness.zh.md) · [14](./14-implementation-plan.zh.md) · [15](./15-verification-plan.zh.md)**  
 **口径计划基线（Codex 全 A）：[16](./16-decision-scope-all-A.zh.md)**  
@@ -265,5 +266,4 @@
 
 ## 9. 下一步
 
-请确认 §6 的 T1–T4（可一并回复）。  
-确认后产出：`10-decision-*.zh.md` + Phase 0/1 实施 plan（含文件级改动列表）。
+Catalog mission 已 closed（2026-07-13）。后续见 [backlog-and-loop-status.zh.md](../backlog-and-loop-status.zh.md)（P7 CI、知识 stale 自动化、P2 图谱等）。

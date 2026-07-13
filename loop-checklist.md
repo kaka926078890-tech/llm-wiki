@@ -1,5 +1,7 @@
 # Loop Engineering Checklist — llm-wiki Catalog Refactor
 
+**Status: CLOSED (2026-07-13).** Catalog mission complete; checklist retained for audit. Next mission: see `docs/backlog-and-loop-status.zh.md`.
+
 Before running the catalog loop unattended, verify every item.
 
 ## Architecture
@@ -44,3 +46,5 @@ Before running the catalog loop unattended, verify every item.
 - [x] `config/catalog-rules.yaml` matches doc 16 (all A) and is runtime-authoritative
 - [x] Listing answers never add items outside generated JSON (G3 lint → refuse)
 - [x] E1 beat E0 before Phase 3 (doc 15 G2; report 2026-07-10)
+- [x] Production `LLM_WIKI_CATALOG_LISTING=true` sign-off (2026-07-13)
+- [x] Mission closed — no new Phase tasks unless regression

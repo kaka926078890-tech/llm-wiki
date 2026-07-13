@@ -33,7 +33,11 @@ All four must be satisfied before `STOP_SIGNAL: done`:
 | Multi-repo sync integrity | `sync:code` / `catalog:gen` paths coherent; three repo roots reachable |
 | Verification gates | Phase gates G0–G3 in `state/phase.md` match doc 15 evidence, or named blocker |
 
-## Required stop signal
+**Catalog mission:** closed 2026-07-13.
+
+**Active mission:** N1 knowledge-stale-auto — `docs/knowledge-stale-auto/14-15`, `state/phase.md`.
+
+Backlog: `docs/backlog-and-loop-status.zh.md`.
 
 ```text
 LOOP: <loop-id>

@@ -1,7 +1,9 @@
 # Catalog Refactor Loop — 运行手册
 
-日期：2026-07-10（2026-07-13 对齐 mission/worker + 固定触发）  
-关联：[14 实施计划](./14-implementation-plan.zh.md) · [15 验证计划](./15-verification-plan.zh.md)
+日期：2026-07-10（2026-07-13 Catalog mission **closed**）  
+关联：[14 实施计划](./14-implementation-plan.zh.md) · [15 验证计划](./15-verification-plan.zh.md) · [backlog-and-loop-status](../backlog-and-loop-status.zh.md)
+
+> **2026-07-13：** Phase 0–4 与生产 flag 拍板均已完成。日常不再跑 catalog 发现 loop，除非 `src/catalog/**` 测试回归失败。
 
 ---
 
@@ -47,6 +49,7 @@
 | 5 | PR | Agent 开 PR，**不自动 merge**；不确定项进 inbox |
 | 6 | 已有规则 | `.cursor/rules/`、`.cursor/skills/llm-wiki-upgrade-verify/` |
 | 7 | 预算 | 分诊 50k tokens/次；全日建议上限 200k tokens |
+| 8 | Catalog 收尾 | Phase 0–4 closed；生产 `LLM_WIKI_CATALOG_LISTING=true` **是**（2026-07-13） |
 
 ---
 

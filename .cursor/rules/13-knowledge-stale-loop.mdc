@@ -1,0 +1,42 @@
+---
+description: >
+  knowledge-stale-loop — auto refresh + fast path inline stale check (N1 mission).
+globs:
+  - "src/core/knowledge/**"
+  - "scripts/knowledge-refresh-stale.ts"
+  - "scripts/sync-code-repos.mjs"
+  - "tests/knowledge*.test.ts"
+alwaysApply: false
+---
+
+# Worker Loop: knowledge-stale-loop
+
+Parent: `llm-wiki-mission-loop`
+
+## Goal
+
+Evidence hash changes must mark knowledge cards stale before fast path returns cached answers.
+
+## Read before touching code
+
+1. `docs/knowledge-stale-auto/14-implementation-plan.zh.md`
+2. `docs/knowledge-stale-auto/15-verification-plan.zh.md`
+3. `state/phase.md`
+
+## Iterate
+
+1. State which N1 phase gate (G1–G3) this change advances.
+2. Smallest diff; one primary variable per PR.
+3. Verify:
+
+```bash
+npm run typecheck
+npm test -- tests/knowledge-fast-path tests/knowledge
+npm run knowledge:refresh-stale   # after Phase 2 lands
+npm test
+```
+
+## Stop signals
+
+Use `done` when gate commands for the touched phase pass.
+Use `blocked-needs-human` for product scope changes outside N1.

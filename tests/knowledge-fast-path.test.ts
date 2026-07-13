@@ -67,7 +67,6 @@ describe("knowledge fast path", () => {
     const cfg = miniCfg(root, root);
     expect(tryKnowledgeFastPath(cfg, "chatkit-web 功能清单有哪些")).toBeNull();
 
-    writeFileSync(abs, "export const changed = 2;\n", "utf-8");
     const verified = store.save({
       question: "chatkit-web 功能清单",
       answer: "verified answer",
@@ -75,6 +74,13 @@ describe("knowledge fast path", () => {
       confidence: "verified",
     });
     expect(tryKnowledgeFastPath(cfg, "chatkit-web 功能清单有哪些")).not.toBeNull();
+
+    writeFileSync(abs, "export const changed = 2;\n", "utf-8");
+    expect(tryKnowledgeFastPath(cfg, "chatkit-web 功能清单有哪些")).toBeNull();
+    const afterInline = store.get(verified.id);
+    expect(afterInline?.staleAt).toBeTruthy();
+    expect(afterInline?.staleReasons?.some((r) => r.startsWith("hash_changed"))).toBe(true);
+
     store.markStale(verified.id, ["hash_changed:sample.ts"]);
     expect(tryKnowledgeFastPath(cfg, "chatkit-web 功能清单有哪些")).toBeNull();
   });

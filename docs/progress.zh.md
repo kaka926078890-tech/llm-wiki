@@ -1,10 +1,12 @@
 # llm-wiki 项目进度
 
-更新日期：2026-06-23
+更新日期：2026-07-13
 
 ## 一句话
 
-**三仓库代码问答原型已可用**（Agent + MCP + CBM + 安全 harness + 证据闭环 + 检索控制 + 知识卡片 + 索引生命周期）；**还不是**完整知识库产品（无 Project Map / P2 图谱、无 P4 融合引擎）。
+**三仓库代码问答原型已可用**（Agent + MCP + CBM + 安全 harness + 证据闭环 + 检索控制 + 知识卡片 + 索引生命周期 + **Catalog 清单读表路径已收尾**）；**还不是**完整知识库产品（无 Project Map / P2 图谱、无 P4 融合引擎）。
+
+Backlog 与 loop 状态见 [backlog-and-loop-status.zh.md](./backlog-and-loop-status.zh.md)。
 
 ---
 
@@ -46,7 +48,8 @@
 | **P0-A** | 安全 Harness | ✅ 完成 | redaction、敏感路径、answer profile、audit |
 | **P0** | 证据约束 | ✅ 完成 | bundle、双端引用校验、无证据拒答、Agent evidence SSE |
 | **P0-B** | 检索计划与预算 | ✅ 完成 | plan、按题型 budget、硬路由、**total 用尽 loop 早停** |
-| **P1** | 索引生命周期 | ✅ 完成 | stale、`/api/index/*`、Index 页 Re-index、`sync:code:full` |
+| **P1** | 索引生命周期 | ✅ 完成 | stale、`/api/index/*`、Index 页 Re-index、`sync:code:full`（含 catalog:gen） |
+| **Catalog** | 功能清单读表 | ✅ 完成 | G0–G4 pass；生产 `LLM_WIKI_CATALOG_LISTING=true` 已拍板 |
 | **P2** | 知识图谱 artifact | ❌ 未开始 | `.reasonix/graph.json` 等 |
 | **P3** | 知识卡片 | 🔶 大部分完成 | 存储、fast path、去重合并、aliases、hit 统计、MCP 保存；无 embedding 语义索引 |
 | **P4** | Evidence-bound 引擎 | ❌ 未开始 | 多源融合 |
@@ -129,16 +132,18 @@
 
 ## 已知缺口 / 建议下一步
 
+详见 [backlog-and-loop-status.zh.md](./backlog-and-loop-status.zh.md)。
+
 | 项 | 缺口 |
 |----|------|
-| P3 | **无 embedding 语义检索**（同义但词面差很大的问法仍可能 miss） |
+| P3 | **stale 自动 refresh**（N1 done）；**无 embedding** | 部分完成 |
 | P3 | 未反哺 P2 图谱 |
 | P7 | CI 自动 golden 回归 |
 | P2 + P5 | Project Map / 图谱 artifact |
 | P4 | planner/retriever 分层重构 |
-| MCP 耗时 | listing 已跳过 summary；全量检索仍 ~50–90s |
+| MCP 耗时 | 清单题已走 catalog 短路径；非清单仍 ~50–90s |
 
-建议优先级：**P7 CI 门禁** → **P2 图谱 + Map** → **P4 引擎**
+建议下一 loop mission：**N1 知识 stale 自动化** 或 **N2 P7 CI** → 再 **P2 图谱 + Map**
 
 ---
 
@@ -166,6 +171,8 @@ npm run verify:upgrade -- --quick
 
 | 文档 | 用途 |
 |------|------|
+| [backlog-and-loop-status.zh.md](./backlog-and-loop-status.zh.md) | Backlog、Catalog 收尾、loop 状态 |
+| [knowledge-stale-auto/14-implementation-plan.zh.md](./knowledge-stale-auto/14-implementation-plan.zh.md) | N1 活跃 mission |
 | [productization-roadmap.zh.md](./productization-roadmap.zh.md) | 分阶段设计 |
 | [codebase-memory-mcp-integration-plan.zh.md](./codebase-memory-mcp-integration-plan.zh.md) | CBM 运维 |
 | [README](../README.md) | 安装与 dev |

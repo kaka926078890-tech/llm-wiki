@@ -75,6 +75,7 @@ cd frontend && npm install && cd ..
 | `npm run sync:code` | clone/pull `code/` 下的三个并行代码仓库 |
 | `npm run sync:code:full` | `sync:code` + `catalog:gen` + `cbm:sync`（拉代码后生成功能清单 JSON 并重索引） |
 | `npm run catalog:gen` | 从三仓离线抽取功能清单 → `.reasonix/feature-lists/*.json` |
+| `npm run knowledge:refresh-stale` | 比对 evidence hash，标记/清除知识卡片 stale |
 | `npm run verify:listing` | 清单题 E0/E1 对比（`--baseline` / `--candidate --runs 3`；candidate 需 `LLM_WIKI_CATALOG_LISTING=true`） |
 | `npm run cbm:setup` | `sync:code` + `cbm:init` 一键启用 codebase-memory-mcp 索引 |
 | `npm run cbm:init` | 为三个 repo 建立 CBM 知识图谱索引（首次） |
@@ -110,6 +111,10 @@ cd frontend && npm test && npm run build
 | MCP (`/mcp`) | `LLM_WIKI_MCP_ANSWER_PROFILE` | `public` |
 
 清单类问题（微服务/应用/模块/CLI 列表）在 `LLM_WIKI_CATALOG_LISTING=true` 时走离线 JSON 读表短路径，不经过 Agent 发明条目；需先 `npm run sync:code:full` 生成 `.reasonix/feature-lists/`。
+
+**Production MCP：** 部署时设置 `LLM_WIKI_CATALOG_LISTING=true`（已拍板 2026-07-13），并定期或发版前执行 `npm run sync:code:full`。回滚：设为 `false`。
+
+**Knowledge cards：** `sync:code:full` 在 CBM sync 后会自动跑 `knowledge:refresh-stale`（`LLM_WIKI_KNOWLEDGE_AUTO_REFRESH=true` 默认）。问答 fast path 命中前也会 inline 校验 evidence hash。
 
 临时切换 MCP 为内部研发模式：
 
